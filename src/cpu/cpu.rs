@@ -21,7 +21,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    fn new_nes_cpu() -> Cpu {
+    fn new() -> Cpu {
         Cpu {
             pc: 0,
             sp: 0,
@@ -30,7 +30,7 @@ impl Cpu {
             reg_y: 0,
             status: CpuStatus::new(),
             cycles: 0,
-            bus: Bus::new_nes_bus(),
+            bus: Bus::new(),
             opcode_to_spec: super::spec::opcode_to_spec(),
         }
     }
@@ -658,13 +658,13 @@ mod test {
     use super::*;
 
     fn new_reset_cpu() -> Cpu {
-        let mut cpu = Cpu::new_nes_cpu();
+        let mut cpu = Cpu::new();
         cpu.reset();
         cpu
     }
 
     fn new_cpu_with_program(program: Vec<u8>) -> Cpu {
-        let mut cpu = Cpu::new_nes_cpu();
+        let mut cpu = Cpu::new();
         cpu.reset();
         cpu.load_program(program);
         cpu
