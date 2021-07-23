@@ -12,7 +12,7 @@ pub struct Cartridge {
 }
 
 impl Cartridge {
-    fn new(raw: &Vec<u8>) -> Result<Cartridge, String> {
+    pub fn new(raw: &Vec<u8>) -> Result<Cartridge, String> {
         if &raw[0..4] != [0x4Eu8, 0x45u8, 0x53u8, 0x1Au8] {
             return Err("NES identifier not found".to_string());
         }
@@ -59,7 +59,7 @@ impl Cartridge {
         })
     }
 
-    fn new_from_file<P: AsRef<std::path::Path>>(ines_file: P) -> Result<Cartridge, String> {
+    pub fn new_from_file<P: AsRef<std::path::Path>>(ines_file: P) -> Result<Cartridge, String> {
         use std::fs;
         let raw = fs::read(&ines_file).map_err(|e| {
             format!(
@@ -71,12 +71,14 @@ impl Cartridge {
         Cartridge::new(&raw)
     }
 
-    fn read(&self, addr: u16) -> u8 {
-        unimplemented!()
+    pub fn cpu_read(&self, addr: u16) -> (u8, bool) {
+        // TODO
+        return (0u8, false);
     }
 
-    fn write(&self, addr: u16, value: u8) -> bool {
-        unimplemented!()
+    pub fn cpu_write(&self, addr: u16, value: u8) -> bool {
+        // TODO
+        return false;
     }
 }
 

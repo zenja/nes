@@ -36,7 +36,7 @@ impl Cpu {
     }
 
     fn load_program(&mut self, program: Vec<u8>) {
-        self.bus.write_batch(0x8000, program);
+        self.bus.cpu_write_batch(0x8000, program);
         self.pc = 0x8000;
     }
 
@@ -80,7 +80,7 @@ impl Cpu {
     }
 
     fn fetch_opcode(&mut self) -> u8 {
-        let opcode = self.bus.read(self.pc);
+        let opcode = self.bus.cpu_read(self.pc);
         self.pc += 1;
         opcode
     }
@@ -88,7 +88,7 @@ impl Cpu {
     fn fetch_oprand_addr(&mut self, addr_mode: AddrMode, inc_cycle_on_page_crossed: bool) -> u16 {
         use super::addr::AddrMode::*;
 
-        let next_u8: u8 = self.bus.read(self.pc);
+        let next_u8: u8 = self.bus.cpu_read(self.pc);
         let next_u16: u16 = self.read_u16(self.pc);
         let next_i8: i8 = i8::from_le_bytes([next_u8]);
         let addr = match addr_mode {
@@ -157,7 +157,7 @@ impl Cpu {
 
         match opcode {
             ADC => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result: u8 = self
                     .acc
                     .wrapping_add(oprand)
@@ -174,7 +174,7 @@ impl Cpu {
                 self.acc = result;
             }
             SBC => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let value = (oprand as u16) ^ 0x00FF;
                 let tmp = self.acc as u16 + value + self.get_status(C) as u16;
                 self.set_status(C, tmp & 0xFF00 != 0);
@@ -185,7 +185,7 @@ impl Cpu {
                 self.acc = (tmp & 0x00FF) as u8;
             }
             AND => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 self.acc = self.acc & oprand;
                 self.set_status(Z, self.acc == 0);
                 self.set_status(N, (self.acc & 0x80) != 0);
@@ -194,7 +194,7 @@ impl Cpu {
                 let oprand = if let Implicit = addr_mode {
                     self.acc
                 } else {
-                    self.bus.read(oprand_addr)
+                    self.bus.cpu_read(oprand_addr)
                 };
                 let tmp: u16 = (oprand << 1) as u16;
                 self.set_status(C, tmp & 0xFF00 != 0);
@@ -204,7 +204,7 @@ impl Cpu {
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
-                    self.bus.write(oprand_addr, result);
+                    self.bus.cpu_write(oprand_addr, result);
                 }
             }
             BCC => {
@@ -223,7 +223,7 @@ impl Cpu {
                 }
             }
             BIT => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let tmp = oprand & self.acc;
                 self.set_status(Z, tmp == 0);
                 self.set_status(N, tmp & (1 << 7) != 0);
@@ -263,18 +263,20 @@ impl Cpu {
 
                 self.set_status(I, true);
                 self.bus
-                    .write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
+                    .cpu_write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
                 self.sp -= 1;
                 self.bus
-                    .write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
+                    .cpu_write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
                 self.sp -= 1;
 
                 self.set_status(B, true);
-                self.bus.write(0x0100 + self.sp as u16, self.status.bits);
+                self.bus
+                    .cpu_write(0x0100 + self.sp as u16, self.status.bits);
                 self.sp -= 1;
                 self.set_status(B, false);
 
-                self.pc = (self.bus.read(0xFFFE) as u16) | ((self.bus.read(0xFFFF) as u16) << 8);
+                self.pc =
+                    (self.bus.cpu_read(0xFFFE) as u16) | ((self.bus.cpu_read(0xFFFF) as u16) << 8);
             }
             BVC => {
                 if self.get_status(N) == false {
@@ -299,27 +301,27 @@ impl Cpu {
                 self.set_status(V, false);
             }
             CMP => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.acc.wrapping_sub(oprand);
                 self.set_status(C, self.acc >= oprand);
                 self.update_status_Z_N(result);
             }
             CPX => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.reg_x.wrapping_sub(oprand);
                 self.set_status(C, self.reg_x >= oprand);
                 self.update_status_Z_N(result);
             }
             CPY => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.reg_y.wrapping_sub(oprand);
                 self.set_status(C, self.reg_y >= oprand);
                 self.update_status_Z_N(result);
             }
             DEC => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = oprand.wrapping_sub(1);
-                self.bus.write(oprand_addr, result);
+                self.bus.cpu_write(oprand_addr, result);
                 self.update_status_Z_N(result);
             }
             DEX => {
@@ -331,15 +333,15 @@ impl Cpu {
                 self.update_status_Z_N(self.reg_y);
             }
             EOR => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.acc ^ oprand;
                 self.acc = result;
                 self.update_status_Z_N(result);
             }
             INC => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = oprand.wrapping_add(1);
-                self.bus.write(oprand_addr, result);
+                self.bus.cpu_write(oprand_addr, result);
                 self.update_status_Z_N(result);
             }
             INX => {
@@ -365,26 +367,26 @@ impl Cpu {
                 self.pc -= 1;
 
                 self.bus
-                    .write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
+                    .cpu_write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
                 self.sp -= 1;
                 self.bus
-                    .write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
+                    .cpu_write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
                 self.sp -= 1;
 
                 self.pc = oprand_addr;
             }
             LDA => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 self.acc = oprand;
                 self.update_status_Z_N(oprand);
             }
             LDX => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 self.reg_x = oprand;
                 self.update_status_Z_N(oprand);
             }
             LDY => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 self.reg_y = oprand;
                 self.update_status_Z_N(oprand);
             }
@@ -392,7 +394,7 @@ impl Cpu {
                 let oprand = if let Implicit = addr_mode {
                     self.acc
                 } else {
-                    self.bus.read(oprand_addr)
+                    self.bus.cpu_read(oprand_addr)
                 };
                 self.set_status(C, oprand & 0x01 == 1);
                 let result = oprand >> 1;
@@ -400,14 +402,14 @@ impl Cpu {
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
-                    self.bus.write(oprand_addr, result);
+                    self.bus.cpu_write(oprand_addr, result);
                 }
             }
             NOP => {
                 unimplemented!();
             }
             ORA => {
-                let oprand = self.bus.read(oprand_addr);
+                let oprand = self.bus.cpu_read(oprand_addr);
                 self.acc = self.acc | oprand;
                 self.update_status_Z_N(self.acc);
             }
@@ -443,7 +445,7 @@ impl Cpu {
                 let oprand = if let Implicit = addr_mode {
                     self.acc
                 } else {
-                    self.bus.read(oprand_addr)
+                    self.bus.cpu_read(oprand_addr)
                 };
                 let c_bits: u8 = if self.get_status(C) { 1 << 0 } else { 0 };
                 let tmp: u16 = ((oprand << 1) as u16) | (c_bits as u16);
@@ -453,7 +455,7 @@ impl Cpu {
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
-                    self.bus.write(oprand_addr, result);
+                    self.bus.cpu_write(oprand_addr, result);
                 }
             }
             ROR => {
@@ -468,7 +470,7 @@ impl Cpu {
                 let oprand = if let Implicit = addr_mode {
                     self.acc
                 } else {
-                    self.bus.read(oprand_addr)
+                    self.bus.cpu_read(oprand_addr)
                 };
                 let c_bits: u8 = if self.get_status(C) { 1 << 0 } else { 0 };
                 let tmp: u16 = ((c_bits << 7) as u16) | (oprand as u16 >> 1);
@@ -477,7 +479,7 @@ impl Cpu {
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
-                    self.bus.write(oprand_addr, result);
+                    self.bus.cpu_write(oprand_addr, result);
                 }
             }
             RTI => {
@@ -499,13 +501,13 @@ impl Cpu {
                 self.turn_off_status(I);
             }
             STA => {
-                self.bus.write(oprand_addr, self.acc);
+                self.bus.cpu_write(oprand_addr, self.acc);
             }
             STX => {
-                self.bus.write(oprand_addr, self.reg_x);
+                self.bus.cpu_write(oprand_addr, self.reg_x);
             }
             STY => {
-                self.bus.write(oprand_addr, self.reg_y);
+                self.bus.cpu_write(oprand_addr, self.reg_y);
             }
             TAX => {
                 self.reg_x = self.acc;
@@ -534,8 +536,8 @@ impl Cpu {
     }
 
     fn read_u16(&self, addr: u16) -> u16 {
-        let a = self.bus.read(addr);
-        let b = self.bus.read(addr + 1);
+        let a = self.bus.cpu_read(addr);
+        let b = self.bus.cpu_read(addr + 1);
         u16::from_le_bytes([a, b])
     }
 
@@ -563,11 +565,11 @@ impl Cpu {
 
     fn stack_pop(&mut self) -> u8 {
         self.sp = self.sp.wrapping_add(1);
-        self.bus.read((0x0100 as u16) + self.sp as u16)
+        self.bus.cpu_read((0x0100 as u16) + self.sp as u16)
     }
 
     fn stack_push(&mut self, data: u8) {
-        self.bus.write((0x0100 as u16) + self.sp as u16, data);
+        self.bus.cpu_write((0x0100 as u16) + self.sp as u16, data);
         self.sp = self.sp.wrapping_sub(1)
     }
 
@@ -674,10 +676,10 @@ mod test {
     fn test_load_program() {
         let mut cpu = new_reset_cpu();
         cpu.load_program(vec![0x01, 0x23, 0x34]);
-        assert_eq!(cpu.bus.read(cpu.pc), 0x01);
-        assert_eq!(cpu.bus.read(cpu.pc + 1), 0x23);
-        assert_eq!(cpu.bus.read(cpu.pc + 2), 0x34);
-        assert_eq!(cpu.bus.read(cpu.pc + 3), 0x00);
+        assert_eq!(cpu.bus.cpu_read(cpu.pc), 0x01);
+        assert_eq!(cpu.bus.cpu_read(cpu.pc + 1), 0x23);
+        assert_eq!(cpu.bus.cpu_read(cpu.pc + 2), 0x34);
+        assert_eq!(cpu.bus.cpu_read(cpu.pc + 3), 0x00);
     }
 
     #[test]
@@ -771,8 +773,8 @@ mod test {
 
         // JMP ($00f0)
         let mut cpu = new_cpu_with_program(vec![0x6c, 0xf0, 0x00]);
-        cpu.bus.write(0x00f0, 0x12);
-        cpu.bus.write(0x00f1, 0x34);
+        cpu.bus.cpu_write(0x00f0, 0x12);
+        cpu.bus.cpu_write(0x00f1, 0x34);
         cpu.fetch_opcode();
         let actual = cpu.fetch_oprand_addr(AddrMode::Indirect, false);
         let expected: u16 = 0x3412;
@@ -780,8 +782,8 @@ mod test {
 
         // LDA ($c0,X)
         let mut cpu = new_cpu_with_program(vec![0xa1, 0xc0]);
-        cpu.bus.write(0x00c1, 0x12);
-        cpu.bus.write(0x00c2, 0x34);
+        cpu.bus.cpu_write(0x00c1, 0x12);
+        cpu.bus.cpu_write(0x00c2, 0x34);
         cpu.reg_x = 1;
         cpu.fetch_opcode();
         let actual = cpu.fetch_oprand_addr(AddrMode::IndexedIndirect, false);
@@ -790,8 +792,8 @@ mod test {
 
         // LDA ($c0),Y
         let mut cpu = new_cpu_with_program(vec![0xb1, 0xc0]);
-        cpu.bus.write(0x00c0, 0x12);
-        cpu.bus.write(0x00c1, 0x34);
+        cpu.bus.cpu_write(0x00c0, 0x12);
+        cpu.bus.cpu_write(0x00c1, 0x34);
         cpu.reg_y = 1;
         cpu.fetch_opcode();
         let actual = cpu.fetch_oprand_addr(AddrMode::IndirectIndexed, false);
