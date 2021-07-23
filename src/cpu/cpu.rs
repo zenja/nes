@@ -1,4 +1,5 @@
 use super::{addr::AddrMode, spec::Spec};
+use crate::cartridge::Cartridge;
 use std::collections::HashMap;
 
 use crate::bus::Bus;
@@ -36,7 +37,8 @@ impl Cpu {
     }
 
     fn load_program(&mut self, program: Vec<u8>) {
-        self.bus.cpu_write_batch(0x8000, program);
+        let cart = Cartridge::new_from_program(program);
+        self.bus.insert_cartridge(cart);
         self.pc = 0x8000;
     }
 
@@ -675,7 +677,7 @@ mod test {
     #[test]
     fn test_load_program() {
         let mut cpu = new_reset_cpu();
-        cpu.load_program(vec![0x01, 0x23, 0x34]);
+        cpu.load_program(vec![0x01, 0x23, 0x34, 0x00]);
         assert_eq!(cpu.bus.cpu_read(cpu.pc), 0x01);
         assert_eq!(cpu.bus.cpu_read(cpu.pc + 1), 0x23);
         assert_eq!(cpu.bus.cpu_read(cpu.pc + 2), 0x34);

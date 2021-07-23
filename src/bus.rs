@@ -32,16 +32,11 @@ use crate::cartridge::Cartridge;
 
 #[allow(dead_code)]
 const CPU_RAM_SIZE: usize = 2048;
-const VRAM_SIZE: usize = 65536;
 
 #[allow(dead_code)]
 pub struct Bus {
     cpu_ram: [u8; CPU_RAM_SIZE],
     cart_opt: Option<Cartridge>,
-
-    // FIXME before we have PPU and Cartridge,
-    //       use an array to represent other parts besides CPU ram
-    rest_virt_ram: [u8; VRAM_SIZE],
 }
 
 impl Bus {
@@ -50,7 +45,6 @@ impl Bus {
         Bus {
             cpu_ram: [0; CPU_RAM_SIZE],
             cart_opt: None,
-            rest_virt_ram: [0; VRAM_SIZE],
         }
     }
 
@@ -64,12 +58,12 @@ impl Bus {
 
         match addr {
             0x0000..=0x1FFF => self.cpu_ram[(addr & 0b0000_0111_1111_1111) as usize],
-            _ => self.rest_virt_ram[addr as usize],
+            _ => 0u8,
         }
     }
 
     pub fn cpu_write(&mut self, addr: u16, value: u8) {
-        if let Some(cart) = &self.cart_opt {
+        if let Some(ref mut cart) = self.cart_opt {
             let ok = cart.cpu_write(addr, value);
             if ok {
                 return;
@@ -78,13 +72,7 @@ impl Bus {
 
         match addr {
             0x0000..=0x1FFF => self.cpu_ram[(addr & 0b0000_0111_1111_1111) as usize] = value,
-            _ => self.rest_virt_ram[addr as usize] = value,
-        }
-    }
-
-    pub fn cpu_write_batch(&mut self, start_addr: u16, data: Vec<u8>) {
-        for i in 0..data.len() {
-            self.cpu_write(start_addr + i as u16, data[i]);
+            _ => (),
         }
     }
 
@@ -105,15 +93,5 @@ mod test {
         assert_eq!(bus.cpu_read(0x0800), 0xFF);
         assert_eq!(bus.cpu_read(0x1000), 0xFF);
         assert_eq!(bus.cpu_read(0x1800), 0xFF);
-    }
-
-    #[test]
-    fn test_write_batch() {
-        let mut bus = Bus::new();
-        bus.cpu_write_batch(0x1000, vec![0x01, 0x02, 0x03, 0x04]);
-        // assert_eq!(bus.read(0x1000), 0x01);
-        assert_eq!(bus.cpu_read(0x1001), 0x02);
-        assert_eq!(bus.cpu_read(0x1002), 0x03);
-        assert_eq!(bus.cpu_read(0x1003), 0x04);
     }
 }

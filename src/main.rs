@@ -1,6 +1,7 @@
 mod bus;
 mod cartridge;
 mod cpu;
+mod mapper;
 
 fn main() {
     let asm = r"

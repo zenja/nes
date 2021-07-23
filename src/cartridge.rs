@@ -1,9 +1,12 @@
+use crate::mapper::mapper;
+
 const PRG_ROM_PAGE_SIZE: usize = 16384;
 const CHR_ROM_PAGE_SIZE: usize = 8192;
 
 #[derive(Debug)]
 pub struct Cartridge {
     mapper_id: u8,
+    mapper: Box<dyn mapper::Mapper>,
     mirror: Mirror,
     num_prg_banks: u8,
     num_chr_banks: u8,
@@ -23,6 +26,10 @@ impl Cartridge {
         let ctrl_byte_2 = raw[7];
 
         let mapper_id = (ctrl_byte_2 & 0b1111_0000) | (ctrl_byte_1 >> 4);
+        let mapper = match mapper::new(mapper_id, num_prg_banks, num_chr_banks) {
+            Some(mapper) => mapper,
+            None => return Err(format!("Mapper {} not supported", mapper_id).to_string()),
+        };
         let mirror: Mirror = {
             if ctrl_byte_1 & (1 << 3) != 0 {
                 Mirror::FourScreen
@@ -51,6 +58,7 @@ impl Cartridge {
 
         Ok(Cartridge {
             mapper_id: mapper_id,
+            mapper: mapper,
             mirror: mirror,
             num_prg_banks: num_prg_banks,
             num_chr_banks: num_chr_banks,
@@ -71,14 +79,38 @@ impl Cartridge {
         Cartridge::new(&raw)
     }
 
-    pub fn cpu_read(&self, addr: u16) -> (u8, bool) {
-        // TODO
-        return (0u8, false);
+    pub fn new_from_program(mut program: Vec<u8>) -> Cartridge {
+        use crate::mapper::mapper_0::Mapper0;
+        let min_len = 16 * 1024;
+        if program.len() < min_len {
+            program.resize(min_len, 0u8);
+        }
+        Cartridge {
+            mapper_id: 0u8,
+            mapper: Box::new(Mapper0::new(1, 1)),
+            mirror: Mirror::Horizontal,
+            num_prg_banks: 1,
+            num_chr_banks: 1,
+            prg_rom: program,
+            chr_rom: vec![],
+        }
     }
 
-    pub fn cpu_write(&self, addr: u16, value: u8) -> bool {
-        // TODO
-        return false;
+    pub fn cpu_read(&self, addr: u16) -> (u8, bool) {
+        match self.mapper.cpu_read_mapping(addr) {
+            (mapped_addr, true) => (self.prg_rom[mapped_addr as usize], true),
+            (_, false) => (0u8, false),
+        }
+    }
+
+    pub fn cpu_write(&mut self, addr: u16, value: u8) -> bool {
+        match self.mapper.cpu_read_mapping(addr) {
+            (mapped_addr, true) => {
+                self.prg_rom[mapped_addr as usize] = value;
+                true
+            }
+            (_, false) => false,
+        }
     }
 }
 
