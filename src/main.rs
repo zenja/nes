@@ -1,4 +1,5 @@
 mod bus;
+mod cartridge;
 mod cpu;
 
 fn main() {
