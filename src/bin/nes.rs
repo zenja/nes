@@ -1,7 +1,4 @@
-mod bus;
-mod cartridge;
-mod cpu;
-mod mapper;
+use nes::cpu;
 
 fn main() {
     let asm = r"

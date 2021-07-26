@@ -13,7 +13,8 @@ pub struct Cpu {
     reg_y: u8,         // Index Register Y
     status: CpuStatus, // Processor Status
 
-    cycles: u32, // Number of cycles remaining for this instruction
+    cycles: u32,       // Number of cycles remaining for this instruction
+    total_cycles: u32, // Number of total cycles this CPU has executed
 
     bus: Bus,
 
@@ -22,7 +23,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    fn new() -> Cpu {
+    pub fn new() -> Cpu {
         Cpu {
             pc: 0,
             sp: 0,
@@ -31,18 +32,25 @@ impl Cpu {
             reg_y: 0,
             status: CpuStatus::new(),
             cycles: 0,
+            total_cycles: 0,
             bus: Bus::new(),
             opcode_to_spec: super::spec::opcode_to_spec(),
         }
     }
 
-    fn load_program(&mut self, program: Vec<u8>) {
+    pub fn load_program(&mut self, program: Vec<u8>) {
         let cart = Cartridge::new_from_program(program);
         self.bus.insert_cartridge(cart);
         self.pc = 0x8000;
     }
 
-    fn reset(&mut self) {
+    pub fn load_ines<P: AsRef<std::path::Path>>(&mut self, path: P) {
+        let cart = Cartridge::new_from_file(path).unwrap();
+        self.bus.insert_cartridge(cart);
+        self.pc = 0x8000;
+    }
+
+    pub fn reset(&mut self) {
         self.pc = 0;
         self.sp = 0xFD;
         self.acc = 0;
@@ -51,6 +59,19 @@ impl Cpu {
         self.status.reset();
         // Reset takes time
         self.cycles = 8;
+    }
+
+    pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback<F: FnMut(&mut Cpu)>(&mut self, mut callback: F) {
+        loop {
+            if self.cycles == 0 {
+                callback(self);
+            }
+            self.tick()
+        }
     }
 
     // one cycle of execution
@@ -79,6 +100,7 @@ impl Cpu {
         }
 
         self.cycles -= 1;
+        self.total_cycles += 1;
     }
 
     fn fetch_opcode(&mut self) -> u8 {
