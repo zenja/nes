@@ -67,36 +67,41 @@ impl Cpu {
 
     pub fn run_with_callback<F: FnMut(&mut Cpu)>(&mut self, mut callback: F) {
         loop {
-            if self.cycles == 0 {
+            let should_callback = self.cycles == 0;
+            self.tick();
+            if should_callback {
                 callback(self);
             }
-            self.tick()
         }
+    }
+
+    fn execute_next_instruction(&mut self) {
+        // Always set the unused status flag bit to 1
+        self.set_status(self::CpuStatusBit::U, true);
+
+        let opcode_byte = self.fetch_opcode();
+        let Spec {
+            opcode,
+            addr_mode,
+            base_cycles,
+            inc_cycle_on_page_crossed,
+            ..
+        } = *self.opcode_to_spec.get(&opcode_byte).unwrap();
+
+        self.cycles = base_cycles as u32;
+
+        let oprand_addr = self.fetch_oprand_addr(addr_mode, inc_cycle_on_page_crossed);
+        self.execute_op(opcode, addr_mode, oprand_addr);
+
+        // Always set the unused status flag bit to 1
+        self.set_status(self::CpuStatusBit::U, true);
     }
 
     // one cycle of execution
     fn tick(&mut self) {
         // if cycle is 0, it means a new instruction can be executed
         if self.cycles == 0 {
-            // Always set the unused status flag bit to 1
-            self.set_status(self::CpuStatusBit::U, true);
-
-            let opcode = self.fetch_opcode();
-            let Spec {
-                opcode,
-                addr_mode,
-                base_cycles,
-                inc_cycle_on_page_crossed,
-                ..
-            } = *self.opcode_to_spec.get(&opcode).unwrap();
-
-            self.cycles = base_cycles as u32;
-
-            let oprand_addr = self.fetch_oprand_addr(addr_mode, inc_cycle_on_page_crossed);
-            self.execute_op(opcode, addr_mode, oprand_addr);
-
-            // Always set the unused status flag bit to 1
-            self.set_status(self::CpuStatusBit::U, true);
+            self.execute_next_instruction();
         }
 
         self.cycles -= 1;
@@ -430,7 +435,7 @@ impl Cpu {
                 }
             }
             NOP => {
-                unimplemented!();
+                // do nothing
             }
             ORA => {
                 let oprand = self.bus.cpu_read(oprand_addr);
