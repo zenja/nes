@@ -110,12 +110,12 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool)] = {
         // LDA
         (0xA9, LDA, Immediate, 2, false),
         (0xA5, LDA, ZeroPage, 3, false),
-        (0xD5, LDA, ZeroPageX, 4, false),
+        (0xB5, LDA, ZeroPageX, 4, false),
         (0xAD, LDA, Absolute, 4, false),
-        (0xDD, LDA, AbsoluteX, 4, true),
-        (0xD9, LDA, AbsoluteY, 4, true),
+        (0xBD, LDA, AbsoluteX, 4, true),
+        (0xB9, LDA, AbsoluteY, 4, true),
         (0xA1, LDA, IndexedIndirect, 6, false),
-        (0xD1, LDA, IndirectIndexed, 5, true),
+        (0xB1, LDA, IndirectIndexed, 5, true),
         // LDX
         (0xA2, LDX, Immediate, 2, false),
         (0xA6, LDX, ZeroPage, 3, false),
@@ -276,6 +276,7 @@ pub enum Opcode {
     TYA,
 }
 
+#[derive(Clone, Copy)]
 pub struct Spec {
     pub opcode_byte: u8,
     pub opcode: Opcode,

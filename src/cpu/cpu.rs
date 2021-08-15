@@ -79,19 +79,9 @@ impl Cpu {
         // Always set the unused status flag bit to 1
         self.set_status(self::CpuStatusBit::U, true);
 
-        let opcode_byte = self.fetch_opcode();
-        let Spec {
-            opcode,
-            addr_mode,
-            base_cycles,
-            inc_cycle_on_page_crossed,
-            ..
-        } = *self.opcode_to_spec.get(&opcode_byte).unwrap();
-
-        self.cycles = base_cycles as u32;
-
-        let oprand_addr = self.fetch_oprand_addr(addr_mode, inc_cycle_on_page_crossed);
-        self.execute_op(opcode, addr_mode, oprand_addr);
+        let inst = self.fetch_next_instruction();
+        self.cycles = inst.cycles as u32;
+        self.execute_inst(inst);
 
         // Always set the unused status flag bit to 1
         self.set_status(self::CpuStatusBit::U, true);
@@ -108,68 +98,84 @@ impl Cpu {
         self.total_cycles += 1;
     }
 
-    fn fetch_opcode(&mut self) -> u8 {
-        let opcode = self.bus.cpu_read(self.pc);
+    fn fetch_next_instruction(&mut self) -> Instruction {
+        let opcode_byte = self.bus.cpu_read(self.pc);
         self.pc += 1;
-        opcode
+        let spec = *self.opcode_to_spec.get(&opcode_byte).unwrap();
+        let (oprand_addr, additional_cycles) =
+            self.peak_oprand_addr_and_cycles(spec.addr_mode, spec.inc_cycle_on_page_crossed);
+        self.pc += spec.addr_mode.size() as u16;
+        Instruction {
+            opcode_byte,
+            oprand_addr,
+            spec,
+            cycles: (&spec.base_cycles + additional_cycles) as usize,
+        }
     }
 
-    fn fetch_oprand_addr(&mut self, addr_mode: AddrMode, inc_cycle_on_page_crossed: bool) -> u16 {
+    // return (oprand addr, cycles to advance)
+    fn peak_oprand_addr_and_cycles(
+        &self,
+        addr_mode: AddrMode,
+        inc_cycle_on_page_crossed: bool,
+    ) -> (u16, u8) {
         use super::addr::AddrMode::*;
 
         let next_u8: u8 = self.bus.cpu_read(self.pc);
         let next_u16: u16 = self.read_u16(self.pc);
         let next_i8: i8 = i8::from_le_bytes([next_u8]);
-        let addr = match addr_mode {
-            Absolute => next_u16,
+        match addr_mode {
+            Absolute => (next_u16, 0u8),
             AbsoluteX => {
                 let addr = next_u16.wrapping_add(self.reg_x as u16);
-                if addr & 0xFF00 != next_u16 & 0xFF00 && inc_cycle_on_page_crossed {
-                    self.cycles += 1;
-                }
-                addr
+                let cycles = if addr & 0xFF00 != next_u16 & 0xFF00 && inc_cycle_on_page_crossed {
+                    1u8
+                } else {
+                    0u8
+                };
+                (addr, cycles)
             }
             AbsoluteY => {
                 let addr = next_u16.wrapping_add(self.reg_y as u16);
-                if addr & 0xFF00 != next_u16 & 0xFF00 && inc_cycle_on_page_crossed {
-                    self.cycles += 1;
-                }
-                addr
+                let cycles = if addr & 0xFF00 != next_u16 & 0xFF00 && inc_cycle_on_page_crossed {
+                    1u8
+                } else {
+                    0u8
+                };
+                (addr, cycles)
             }
-            ZeroPage => next_u8 as u16,
-            ZeroPageX => (next_u8.wrapping_add(self.reg_x)) as u16,
-            ZeroPageY => (next_u8.wrapping_add(self.reg_y)) as u16,
-            Immediate => self.pc,
+            ZeroPage => (next_u8 as u16, 0u8),
+            ZeroPageX => ((next_u8.wrapping_add(self.reg_x)) as u16, 0u8),
+            ZeroPageY => ((next_u8.wrapping_add(self.reg_y)) as u16, 0u8),
+            Immediate => (self.pc, 0u8),
             // for relative addressing, handle additional cycles in instruction itself
-            Relative => ((self.pc as i32) + Relative.size() as i32 + (next_i8 as i32)) as u16,
-            Implicit => 0,
-            Indirect => self.read_u16(next_u16),
-            IndexedIndirect => self.read_u16((next_u8.wrapping_add(self.reg_x)) as u16),
+            Relative => (
+                ((self.pc as i32) + Relative.size() as i32 + (next_i8 as i32)) as u16,
+                0u8,
+            ),
+            Implicit => (0u16, 0u8),
+            Indirect => (self.read_u16(next_u16), 0u8),
+            IndexedIndirect => (
+                self.read_u16((next_u8.wrapping_add(self.reg_x)) as u16),
+                0u8,
+            ),
             IndirectIndexed => {
                 let addr = self
                     .read_u16(next_u8 as u16)
                     .wrapping_add(self.reg_y as u16);
-                if addr & 0xFF00 != self.read_u16(next_u8 as u16) & 0xFF00
+                let cycles = if addr & 0xFF00 != self.read_u16(next_u8 as u16) & 0xFF00
                     && inc_cycle_on_page_crossed
                 {
-                    self.cycles += 1
-                }
-                addr
+                    1
+                } else {
+                    0
+                };
+                (addr, cycles)
             }
-        };
-
-        self.pc += addr_mode.size() as u16;
-
-        addr
+        }
     }
 
-    // return additional cycles caused by execution
-    fn execute_op(
-        &mut self,
-        opcode: super::spec::Opcode,
-        addr_mode: super::addr::AddrMode,
-        oprand_addr: u16,
-    ) {
+    fn execute_inst(&mut self, inst: Instruction) {
         use self::CpuStatusBit::*;
         use super::addr::AddrMode::*;
         use super::spec::Opcode::*;
@@ -184,7 +190,10 @@ impl Cpu {
             *pc = oprand_addr;
         }
 
-        match opcode {
+        let addr_mode = inst.spec.addr_mode;
+        let oprand_addr = inst.oprand_addr;
+
+        match inst.spec.opcode {
             ADC => {
                 let oprand = self.bus.cpu_read(oprand_addr);
                 let result: u8 = self
@@ -684,6 +693,14 @@ impl CpuStatus {
     }
 }
 
+#[derive(Clone, Copy)]
+struct Instruction {
+    opcode_byte: u8,
+    oprand_addr: u16,
+    spec: Spec,
+    cycles: usize,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -712,17 +729,6 @@ mod test {
     }
 
     #[test]
-    fn test_fetch_opcode() {
-        let mut cpu = new_reset_cpu();
-        let program: Vec<u8> = vec![0x8d, 0x00, 0xc0]; // STA $c000
-        cpu.load_program(program);
-        let origin_pc = cpu.pc;
-        let opcode = cpu.fetch_opcode();
-        assert_eq!(opcode, 0x8d);
-        assert_eq!(cpu.pc, origin_pc + 1);
-    }
-
-    #[test]
     fn test_fetch_oprand_addr() {
         fn assert_addr_eq(actual: u16, expected: u16) {
             assert_eq!(
@@ -734,100 +740,88 @@ mod test {
 
         // STA $c000
         let mut cpu = new_cpu_with_program(vec![0x8d, 0x00, 0xc0]);
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::Absolute, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0xC000;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // STA $0200,X
         let mut cpu = new_cpu_with_program(vec![0x9d, 0x00, 0x02]);
-        cpu.fetch_opcode();
         cpu.reg_x = 0x01;
-        let actual = cpu.fetch_oprand_addr(AddrMode::AbsoluteX, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x0201;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // STA $0200,Y
-        let mut cpu = new_cpu_with_program(vec![0x9d, 0x00, 0x02]);
-        cpu.fetch_opcode();
+        let mut cpu = new_cpu_with_program(vec![0x99, 0x00, 0x02]);
         cpu.reg_y = 0x01;
-        let actual = cpu.fetch_oprand_addr(AddrMode::AbsoluteY, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x0201;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // STA $c0
         let mut cpu = new_cpu_with_program(vec![0x85, 0xc0]);
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::ZeroPage, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x00c0;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // STA $c0,X
         let mut cpu = new_cpu_with_program(vec![0x95, 0xc0]);
-        cpu.fetch_opcode();
         cpu.reg_x = 0x01;
-        let actual = cpu.fetch_oprand_addr(AddrMode::ZeroPageX, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x00c1;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // LDX $c0,Y
         let mut cpu = new_cpu_with_program(vec![0xb6, 0xc0]);
-        cpu.fetch_opcode();
         cpu.reg_y = 0x01;
-        let actual = cpu.fetch_oprand_addr(AddrMode::ZeroPageY, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x00c1;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // LDX #$c0
         let mut cpu = new_cpu_with_program(vec![0xa2, 0xc0]);
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::Immediate, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x8001;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // BNE not_equal
         // not_equal: BRK
         let mut cpu = new_cpu_with_program(vec![0xd0, 0x00, 0x00]);
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::Relative, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x8002;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // INX
         let mut cpu = new_cpu_with_program(vec![0xe8]);
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::Implicit, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // JMP ($00f0)
         let mut cpu = new_cpu_with_program(vec![0x6c, 0xf0, 0x00]);
         cpu.bus.cpu_write(0x00f0, 0x12);
         cpu.bus.cpu_write(0x00f1, 0x34);
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::Indirect, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x3412;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // LDA ($c0,X)
         let mut cpu = new_cpu_with_program(vec![0xa1, 0xc0]);
         cpu.bus.cpu_write(0x00c1, 0x12);
         cpu.bus.cpu_write(0x00c2, 0x34);
         cpu.reg_x = 1;
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::IndexedIndirect, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x3412;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
 
         // LDA ($c0),Y
         let mut cpu = new_cpu_with_program(vec![0xb1, 0xc0]);
         cpu.bus.cpu_write(0x00c0, 0x12);
         cpu.bus.cpu_write(0x00c1, 0x34);
         cpu.reg_y = 1;
-        cpu.fetch_opcode();
-        let actual = cpu.fetch_oprand_addr(AddrMode::IndirectIndexed, false);
+        let inst = cpu.fetch_next_instruction();
         let expected: u16 = 0x3413;
-        assert_addr_eq(actual, expected);
+        assert_addr_eq(inst.oprand_addr, expected);
     }
 
     #[test]
