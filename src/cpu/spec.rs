@@ -216,7 +216,7 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool)] = {
 };
 
 #[allow(dead_code)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Opcode {
     ADC,
     AND,

@@ -1,3 +1,5 @@
+pub mod trace;
+
 use super::{addr::AddrMode, spec::Spec};
 use crate::cartridge::Cartridge;
 use std::collections::HashMap;
@@ -6,7 +8,7 @@ use crate::bus::Bus;
 
 #[allow(dead_code)]
 pub struct Cpu {
-    pc: u16,           // Program Counter
+    pub pc: u16,       // Program Counter
     sp: u8,            // Stack Pointer
     acc: u8,           // Accumulator
     reg_x: u8,         // Index Register X
@@ -47,18 +49,20 @@ impl Cpu {
     pub fn load_ines<P: AsRef<std::path::Path>>(&mut self, path: P) {
         let cart = Cartridge::new_from_file(path).unwrap();
         self.bus.insert_cartridge(cart);
-        self.pc = 0x8000;
     }
 
     pub fn reset(&mut self) {
-        self.pc = 0;
+        self.pc = self.read_u16(0xFFFC);
         self.sp = 0xFD;
         self.acc = 0;
         self.reg_x = 0;
         self.reg_y = 0;
         self.status.reset();
+        self.status.set(CpuStatusBit::I, true);
+        self.status.set(CpuStatusBit::U, true);
+
         // Reset takes time
-        self.cycles = 8;
+        self.cycles = 7;
     }
 
     pub fn run(&mut self) {
@@ -68,9 +72,14 @@ impl Cpu {
     pub fn run_with_callback<F: FnMut(&mut Cpu)>(&mut self, mut callback: F) {
         loop {
             let should_callback = self.cycles == 0;
-            self.tick();
             if should_callback {
+                // let pc = self.pc;
+                // let inst = self.peak_next_instruction();
+                // callback(self, pc, &inst);
                 callback(self);
+                self.tick();
+            } else {
+                self.tick();
             }
         }
     }
@@ -111,6 +120,14 @@ impl Cpu {
             spec,
             cycles: (&spec.base_cycles + additional_cycles) as usize,
         }
+    }
+
+    // fetch next instruction, but keep CPU state unchanged
+    fn peak_next_instruction(&mut self) -> Instruction {
+        let pc = self.pc;
+        let inst = self.fetch_next_instruction();
+        self.pc = pc;
+        inst
     }
 
     // return (oprand addr, cycles to advance)
@@ -530,13 +547,13 @@ impl Cpu {
                 self.pc = self.stack_pop_u16().wrapping_add(1);
             }
             SEC => {
-                self.turn_off_status(C);
+                self.turn_on_status(C);
             }
             SED => {
-                self.turn_off_status(D);
+                self.turn_on_status(D);
             }
             SEI => {
-                self.turn_off_status(I);
+                self.turn_on_status(I);
             }
             STA => {
                 self.bus.cpu_write(oprand_addr, self.acc);
@@ -694,7 +711,7 @@ impl CpuStatus {
 }
 
 #[derive(Clone, Copy)]
-struct Instruction {
+pub struct Instruction {
     opcode_byte: u8,
     oprand_addr: u16,
     spec: Spec,
