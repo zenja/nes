@@ -609,6 +609,26 @@ impl Cpu {
                 self.acc = self.reg_y;
                 self.update_status_Z_N(self.acc);
             }
+
+            // ---------- Unofficial Opcodes ----------
+            LAX => {
+                // LAX is shortcut for LDA value then TAX
+                self.acc = oprand;
+                self.reg_x = self.acc;
+                self.update_status_Z_N(self.acc);
+            }
+            SAX => {
+                // Stores the bitwise AND of A and X.
+                // As with STA and STX, no flags are affected.
+                self.bus.cpu_write(oprand_addr, self.acc & self.reg_x);
+            }
+            DCP => {
+                // Equivalent to DEC value then CMP value
+                let result = oprand.wrapping_sub(1);
+                self.bus.cpu_write(oprand_addr, result);
+                self.set_status(C, self.acc >= result);
+                self.update_status_Z_N(self.acc.wrapping_sub(result));
+            }
         }
     }
 

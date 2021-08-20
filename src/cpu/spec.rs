@@ -246,6 +246,28 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool, bool)] = {
         (0x7C, NOP, AbsoluteX, 4, true, false),
         (0xDC, NOP, AbsoluteX, 4, true, false),
         (0xFC, NOP, AbsoluteX, 4, true, false),
+        // LAX
+        (0xA7, LAX, ZeroPage, 3, false, false),
+        (0xB7, LAX, ZeroPageY, 4, false, false),
+        (0xAF, LAX, Absolute, 4, false, false),
+        (0xBF, LAX, AbsoluteY, 4, true, false),
+        (0xA3, LAX, IndexedIndirect, 6, false, false),
+        (0xB3, LAX, IndirectIndexed, 5, true, false),
+        // SAX
+        (0x87, SAX, ZeroPage, 3, false, false),
+        (0x97, SAX, ZeroPageY, 4, false, false),
+        (0x83, SAX, IndexedIndirect, 6, false, false),
+        (0x8F, SAX, Absolute, 4, false, false),
+        // SBC
+        (0xEB, SBC, Immediate, 2, false, false),
+        // DCP
+        (0xC7, DCP, ZeroPage, 5, false, false),
+        (0xD7, DCP, ZeroPageX, 6, false, false),
+        (0xCF, DCP, Absolute, 6, false, false),
+        (0xDF, DCP, AbsoluteX, 7, false, false),
+        (0xDB, DCP, AbsoluteY, 7, false, false),
+        (0xC3, DCP, IndexedIndirect, 8, false, false),
+        (0xD3, DCP, IndirectIndexed, 8, false, false),
     ]
 };
 
@@ -308,6 +330,10 @@ pub enum Opcode {
     TXA,
     TXS,
     TYA,
+    // Pure Unofficial Opcodes
+    LAX,
+    SAX,
+    DCP,
 }
 
 #[derive(Clone, Copy)]
