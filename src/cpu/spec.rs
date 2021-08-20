@@ -200,7 +200,7 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool)] = {
         (0x8E, STX, Absolute, 4, false),
         // STY
         (0x84, STY, ZeroPage, 3, false),
-        (0x94, STY, ZeroPageY, 4, false),
+        (0x94, STY, ZeroPageX, 4, false),
         (0x8C, STY, Absolute, 4, false),
         // TAX
         (0xAA, TAX, Implicit, 2, false),

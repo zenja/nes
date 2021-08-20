@@ -87,7 +87,23 @@ impl Cpu {
                 ASL | LSR | ROL | ROR => "A".to_string(),
                 _ => "".to_string(),
             },
-            Indirect => format!("(${:04X?}) = {:04X?}", next_u16, inst.oprand_addr),
+            Indirect => {
+                let addr_before_indirect = next_u16;
+                let oprand_addr: u16 = if let JMP = inst.spec.opcode {
+                    let a_addr = addr_before_indirect;
+                    let b_addr = if a_addr & 0x00FF == 0x00FF {
+                        a_addr & 0xFF00
+                    } else {
+                        addr_before_indirect.wrapping_add(1)
+                    };
+                    let a = self.bus.cpu_read(a_addr);
+                    let b = self.bus.cpu_read(b_addr);
+                    u16::from_le_bytes([a, b])
+                } else {
+                    inst.oprand_addr
+                };
+                format!("(${:04X?}) = {:04X?}", addr_before_indirect, oprand_addr)
+            }
             IndexedIndirect => {
                 format!(
                     "(${:02X?},X) @ {:02X?} = {:04X?} = {:02X?}",

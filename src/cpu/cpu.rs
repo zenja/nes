@@ -412,6 +412,25 @@ impl Cpu {
                 self.update_status_Z_N(self.reg_y);
             }
             JMP => {
+                // Caveat:
+                // AN INDIRECT JUMP MUST NEVER USE A VECTOR
+                // BEGINNING ON THE LAST BYTE OF A PAGE
+                // Ref:http://www.6502.org/tutorials/6502opcodes.html#JMP
+                let addr_before_indirect: u16 =
+                    self.read_u16(self.pc - inst.spec.addr_mode.size() as u16);
+                let oprand_addr: u16 = if let AddrMode::Indirect = inst.spec.addr_mode {
+                    let a_addr = addr_before_indirect;
+                    let b_addr = if a_addr & 0x00FF == 0x00FF {
+                        a_addr & 0xFF00
+                    } else {
+                        addr_before_indirect.wrapping_add(1)
+                    };
+                    let a = self.bus.cpu_read(a_addr);
+                    let b = self.bus.cpu_read(b_addr);
+                    u16::from_le_bytes([a, b])
+                } else {
+                    inst.oprand_addr
+                };
                 self.pc = oprand_addr;
             }
             JSR => {
