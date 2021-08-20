@@ -22,7 +22,7 @@ impl Cpu {
             .join(" ");
         let asm = Cpu::disassemble(self, &inst);
         format!(
-            "{:04X?}  {:8}  {:30}  A:{:02X?} X:{:02X?} Y:{:02X?} P:{:02X?} SP:{:02X?} CYC:{}",
+            "{:04X?}  {:8} {:31}  A:{:02X?} X:{:02X?} Y:{:02X?} P:{:02X?} SP:{:02X?} CYC:{}",
             pc,
             inst_bytes_str,
             asm,
@@ -39,7 +39,11 @@ impl Cpu {
         use super::super::spec::Opcode::*;
         use super::AddrMode::*;
 
-        let mut asm: String = format!("{:?} ", inst.spec.opcode);
+        let mut asm: String = format!(
+            "{}{:?} ",
+            if inst.spec.is_official { " " } else { "*" },
+            inst.spec.opcode
+        );
 
         let next_u8: u8 = self.bus.cpu_read(self.pc + 1);
         let next_u16: u16 = self.read_u16(self.pc + 1);
