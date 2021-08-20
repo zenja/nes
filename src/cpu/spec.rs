@@ -216,7 +216,7 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool, bool)] = {
         (0x98, TYA, Implicit, 2, false, true),
         // ---------- Unofficial Opcodes ----------
         // Ref: https://www.nesdev.com/undocumented_opcodes.txt
-        // NOP
+        // NOP (DOP)
         (0x04, NOP, ZeroPage, 3, false, false),
         (0x14, NOP, ZeroPageX, 4, false, false),
         (0x34, NOP, ZeroPageX, 4, false, false),
@@ -231,6 +231,14 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool, bool)] = {
         (0xD4, NOP, ZeroPageX, 4, false, false),
         (0xE2, NOP, Immediate, 2, false, false),
         (0xF4, NOP, ZeroPageX, 4, false, false),
+        // NOP (TOP)
+        (0x0C, NOP, Absolute, 4, false, false),
+        (0x1C, NOP, AbsoluteX, 4, true, false),
+        (0x3C, NOP, AbsoluteX, 4, true, false),
+        (0x5C, NOP, AbsoluteX, 4, true, false),
+        (0x7C, NOP, AbsoluteX, 4, true, false),
+        (0xDC, NOP, AbsoluteX, 4, true, false),
+        (0xFC, NOP, AbsoluteX, 4, true, false),
     ]
 };
 
