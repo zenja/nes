@@ -36,6 +36,7 @@ impl Cpu {
     }
 
     fn disassemble(&self, inst: &Instruction) -> String {
+        use super::super::spec::Opcode::*;
         use super::AddrMode::*;
 
         let mut asm: String = format!("{:?} ", inst.spec.opcode);
@@ -43,7 +44,14 @@ impl Cpu {
         let next_u8: u8 = self.bus.cpu_read(self.pc + 1);
         let next_u16: u16 = self.read_u16(self.pc + 1);
         let oprands_asm: String = match inst.spec.addr_mode {
-            Absolute => format!("${:04X?}", inst.oprand_addr),
+            Absolute => match inst.spec.opcode {
+                JMP | JSR => format!("${:04X?}", inst.oprand_addr),
+                _ => format!(
+                    "${:04X?} = {:02X?}",
+                    inst.oprand_addr,
+                    self.bus.cpu_read(inst.oprand_addr)
+                ),
+            },
             AbsoluteX => format!(
                 "${:04X?},X @ {:04X?} = {:02X?}",
                 next_u16,
@@ -75,7 +83,10 @@ impl Cpu {
             ),
             Immediate => format!("#${:02X?}", self.bus.cpu_read(inst.oprand_addr)),
             Relative => format!("${:04X}", inst.oprand_addr),
-            Implicit => "".to_string(),
+            Implicit => match inst.spec.opcode {
+                ASL | LSR | ROL | ROR => "A".to_string(),
+                _ => "".to_string(),
+            },
             Indirect => format!("(${:04X?}) = {:04X?}", next_u16, inst.oprand_addr),
             IndexedIndirect => {
                 format!(
@@ -87,10 +98,17 @@ impl Cpu {
                 )
             }
             IndirectIndexed => {
+                let addr_before_add_y: u16 = if next_u8 == 0xFF {
+                    let a = self.bus.cpu_read(0x00FF);
+                    let b = self.bus.cpu_read(0x0000);
+                    u16::from_le_bytes([a, b])
+                } else {
+                    self.read_u16(next_u8 as u16)
+                };
                 format!(
-                    "(${:02X?}),Y = 0{:04X?} @ 0{:04X?} = {:02X?}",
+                    "(${:02X?}),Y = {:04X?} @ {:04X?} = {:02X?}",
                     next_u8,
-                    self.bus.cpu_read(next_u8 as u16),
+                    addr_before_add_y,
                     inst.oprand_addr,
                     self.bus.cpu_read(inst.oprand_addr)
                 )

@@ -172,14 +172,27 @@ impl Cpu {
             ),
             Implicit => (0u16, 0u8),
             Indirect => (self.read_u16(next_u16), 0u8),
-            IndexedIndirect => (
-                self.read_u16((next_u8.wrapping_add(self.reg_x)) as u16),
-                0u8,
-            ),
+            IndexedIndirect => {
+                let indexed = next_u8.wrapping_add(self.reg_x);
+                let addr: u16 = if indexed == 0xFF {
+                    self.read_u16(indexed as u16);
+                    let a = self.bus.cpu_read(0x00FF);
+                    let b = self.bus.cpu_read(0x0000);
+                    u16::from_le_bytes([a, b])
+                } else {
+                    self.read_u16(indexed as u16)
+                };
+                (addr, 0u8)
+            }
             IndirectIndexed => {
-                let addr = self
-                    .read_u16(next_u8 as u16)
-                    .wrapping_add(self.reg_y as u16);
+                let addr_before_add_y: u16 = if next_u8 == 0xFF {
+                    let a = self.bus.cpu_read(0x00FF);
+                    let b = self.bus.cpu_read(0x0000);
+                    u16::from_le_bytes([a, b])
+                } else {
+                    self.read_u16(next_u8 as u16)
+                };
+                let addr = addr_before_add_y.wrapping_add(self.reg_y as u16);
                 let cycles = if addr & 0xFF00 != self.read_u16(next_u8 as u16) & 0xFF00
                     && inc_cycle_on_page_crossed
                 {
@@ -209,27 +222,26 @@ impl Cpu {
 
         let addr_mode = inst.spec.addr_mode;
         let oprand_addr = inst.oprand_addr;
+        let oprand = self.bus.cpu_read(oprand_addr);
 
         match inst.spec.opcode {
             ADC => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result: u8 = self
                     .acc
                     .wrapping_add(oprand)
                     .wrapping_add(self.get_status(C) as u8);
                 let tmp = self.acc as u16 + oprand as u16 + self.get_status(C) as u16;
-                self.set_status(C, tmp > 255);
+                self.set_status(C, tmp > 0xFF);
                 self.set_status(Z, result == 0);
-                let overflow: bool = ((!((self.acc as u16) ^ (oprand as u16))
-                    ^ ((self.acc as u16) ^ (tmp as u16)))
-                    & 0x0080)
+                let overflow: bool = ((result as u16) ^ (oprand as u16))
+                    & ((self.acc as u16) ^ (result as u16))
+                    & 0x0080
                     != 0;
                 self.set_status(V, overflow);
                 self.set_status(N, (tmp & 0x0080) != 0);
                 self.acc = result;
             }
             SBC => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let value = (oprand as u16) ^ 0x00FF;
                 let tmp = self.acc as u16 + value + self.get_status(C) as u16;
                 self.set_status(C, tmp & 0xFF00 != 0);
@@ -240,7 +252,6 @@ impl Cpu {
                 self.acc = (tmp & 0x00FF) as u8;
             }
             AND => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 self.acc = self.acc & oprand;
                 self.set_status(Z, self.acc == 0);
                 self.set_status(N, (self.acc & 0x80) != 0);
@@ -251,8 +262,8 @@ impl Cpu {
                 } else {
                     self.bus.cpu_read(oprand_addr)
                 };
-                let tmp: u16 = (oprand << 1) as u16;
-                self.set_status(C, tmp & 0xFF00 != 0);
+                let tmp: u16 = (oprand as u16) << 1;
+                self.set_status(C, oprand & (1 << 7) != 0);
                 self.set_status(Z, tmp & 0x00FF == 0);
                 self.set_status(N, (tmp & 0x0080) != 0);
                 let result = (tmp & 0x00FF) as u8;
@@ -278,11 +289,10 @@ impl Cpu {
                 }
             }
             BIT => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let tmp = oprand & self.acc;
                 self.set_status(Z, tmp == 0);
-                self.set_status(N, tmp & (1 << 7) != 0);
-                self.set_status(V, tmp & (1 << 6) != 0);
+                self.set_status(N, oprand & (1 << 7) != 0);
+                self.set_status(V, oprand & (1 << 6) != 0);
             }
             BMI => {
                 if self.get_status(N) == true {
@@ -334,7 +344,7 @@ impl Cpu {
                     (self.bus.cpu_read(0xFFFE) as u16) | ((self.bus.cpu_read(0xFFFF) as u16) << 8);
             }
             BVC => {
-                if self.get_status(N) == false {
+                if self.get_status(V) == false {
                     handle_branching(oprand_addr, &mut self.cycles, &mut self.pc);
                 }
             }
@@ -356,55 +366,49 @@ impl Cpu {
                 self.set_status(V, false);
             }
             CMP => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.acc.wrapping_sub(oprand);
                 self.set_status(C, self.acc >= oprand);
                 self.update_status_Z_N(result);
             }
             CPX => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.reg_x.wrapping_sub(oprand);
                 self.set_status(C, self.reg_x >= oprand);
                 self.update_status_Z_N(result);
             }
             CPY => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.reg_y.wrapping_sub(oprand);
                 self.set_status(C, self.reg_y >= oprand);
                 self.update_status_Z_N(result);
             }
             DEC => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = oprand.wrapping_sub(1);
                 self.bus.cpu_write(oprand_addr, result);
                 self.update_status_Z_N(result);
             }
             DEX => {
-                self.reg_x -= 1;
+                self.reg_x = self.reg_x.wrapping_sub(1);
                 self.update_status_Z_N(self.reg_x);
             }
             DEY => {
-                self.reg_y -= 1;
+                self.reg_y = self.reg_y.wrapping_sub(1);
                 self.update_status_Z_N(self.reg_y);
             }
             EOR => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = self.acc ^ oprand;
                 self.acc = result;
                 self.update_status_Z_N(result);
             }
             INC => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 let result = oprand.wrapping_add(1);
                 self.bus.cpu_write(oprand_addr, result);
                 self.update_status_Z_N(result);
             }
             INX => {
-                self.reg_x += 1;
+                self.reg_x = self.reg_x.wrapping_add(1);
                 self.update_status_Z_N(self.reg_x);
             }
             INY => {
-                self.reg_y += 1;
+                self.reg_y = self.reg_y.wrapping_add(1);
                 self.update_status_Z_N(self.reg_y);
             }
             JMP => {
@@ -431,17 +435,14 @@ impl Cpu {
                 self.pc = oprand_addr;
             }
             LDA => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 self.acc = oprand;
                 self.update_status_Z_N(oprand);
             }
             LDX => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 self.reg_x = oprand;
                 self.update_status_Z_N(oprand);
             }
             LDY => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 self.reg_y = oprand;
                 self.update_status_Z_N(oprand);
             }
@@ -464,7 +465,6 @@ impl Cpu {
                 // do nothing
             }
             ORA => {
-                let oprand = self.bus.cpu_read(oprand_addr);
                 self.acc = self.acc | oprand;
                 self.update_status_Z_N(self.acc);
             }
@@ -486,6 +486,7 @@ impl Cpu {
             }
             PLP => {
                 self.status.bits = self.stack_pop();
+                self.set_status(B, false);
                 self.set_status(U, true);
             }
             ROL => {
@@ -507,6 +508,7 @@ impl Cpu {
                 self.set_status(C, tmp & 0xFF00 != 0);
                 let result = (tmp & 0x00FF) as u8;
                 self.update_status_Z_N(result);
+                self.set_status(C, oprand & (1 << 7) != 0);
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
@@ -531,6 +533,7 @@ impl Cpu {
                 let tmp: u16 = ((c_bits << 7) as u16) | (oprand as u16 >> 1);
                 let result = (tmp & 0x00FF) as u8;
                 self.update_status_Z_N(result);
+                self.set_status(C, oprand & 1 != 0);
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {

@@ -50,6 +50,8 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool)] = {
         (0x00, BRK, Implicit, 7, false),
         // BVC
         (0x50, BVC, Relative, 2, true),
+        // BVS
+        (0x70, BVS, Relative, 2, true),
         // CLC
         (0x18, CLC, Implicit, 2, false),
         // CLD
