@@ -268,6 +268,46 @@ const SPEC_TABLE: &'static [(u8, Opcode, AddrMode, u8, bool, bool)] = {
         (0xDB, DCP, AbsoluteY, 7, false, false),
         (0xC3, DCP, IndexedIndirect, 8, false, false),
         (0xD3, DCP, IndirectIndexed, 8, false, false),
+        // ISB
+        (0xE7, ISB, ZeroPage, 5, false, false),
+        (0xF7, ISB, ZeroPageX, 6, false, false),
+        (0xEF, ISB, Absolute, 6, false, false),
+        (0xFF, ISB, AbsoluteX, 7, false, false),
+        (0xFB, ISB, AbsoluteY, 7, false, false),
+        (0xE3, ISB, IndexedIndirect, 8, false, false),
+        (0xF3, ISB, IndirectIndexed, 8, false, false),
+        // SLO
+        (0x07, SLO, ZeroPage, 5, false, false),
+        (0x17, SLO, ZeroPageX, 6, false, false),
+        (0x0F, SLO, Absolute, 6, false, false),
+        (0x1F, SLO, AbsoluteX, 7, false, false),
+        (0x1B, SLO, AbsoluteY, 7, false, false),
+        (0x03, SLO, IndexedIndirect, 8, false, false),
+        (0x13, SLO, IndirectIndexed, 8, false, false),
+        // RLA
+        (0x27, RLA, ZeroPage, 5, false, false),
+        (0x37, RLA, ZeroPageX, 6, false, false),
+        (0x2F, RLA, Absolute, 6, false, false),
+        (0x3F, RLA, AbsoluteX, 7, false, false),
+        (0x3B, RLA, AbsoluteY, 7, false, false),
+        (0x23, RLA, IndexedIndirect, 8, false, false),
+        (0x33, RLA, IndirectIndexed, 8, false, false),
+        // SRE
+        (0x47, SRE, ZeroPage, 5, false, false),
+        (0x57, SRE, ZeroPageX, 6, false, false),
+        (0x4F, SRE, Absolute, 6, false, false),
+        (0x5F, SRE, AbsoluteX, 7, false, false),
+        (0x5B, SRE, AbsoluteY, 7, false, false),
+        (0x43, SRE, IndexedIndirect, 8, false, false),
+        (0x53, SRE, IndirectIndexed, 8, false, false),
+        // RRA
+        (0x67, RRA, ZeroPage, 5, false, false),
+        (0x77, RRA, ZeroPageX, 6, false, false),
+        (0x6F, RRA, Absolute, 6, false, false),
+        (0x7F, RRA, AbsoluteX, 7, false, false),
+        (0x7B, RRA, AbsoluteY, 7, false, false),
+        (0x63, RRA, IndexedIndirect, 8, false, false),
+        (0x73, RRA, IndirectIndexed, 8, false, false),
     ]
 };
 
@@ -334,6 +374,11 @@ pub enum Opcode {
     LAX,
     SAX,
     DCP,
+    ISB,
+    SLO,
+    RLA,
+    SRE,
+    RRA,
 }
 
 #[derive(Clone, Copy)]

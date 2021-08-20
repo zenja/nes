@@ -611,6 +611,7 @@ impl Cpu {
             }
 
             // ---------- Unofficial Opcodes ----------
+            // Ref: https://wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes
             LAX => {
                 // LAX is shortcut for LDA value then TAX
                 self.acc = oprand;
@@ -628,6 +629,118 @@ impl Cpu {
                 self.bus.cpu_write(oprand_addr, result);
                 self.set_status(C, self.acc >= result);
                 self.update_status_Z_N(self.acc.wrapping_sub(result));
+            }
+            ISB => {
+                // Equivalent to INC value then SBC value
+                let result = oprand.wrapping_add(1);
+                self.bus.cpu_write(oprand_addr, result);
+                self.update_status_Z_N(result);
+
+                let value = (result as u16) ^ 0x00FF;
+                let tmp = self.acc as u16 + value + self.get_status(C) as u16;
+                self.set_status(C, tmp & 0xFF00 != 0);
+                self.set_status(Z, tmp & 0x00FF == 0);
+                let overflow: bool = (tmp ^ (self.acc as u16)) & (tmp ^ value) & 0x0080 != 0;
+                self.set_status(V, overflow);
+                self.set_status(N, (tmp & 0x0080) != 0);
+                self.acc = (tmp & 0x00FF) as u8;
+            }
+            SLO => {
+                // Equivalent to ASL value then ORA value
+                let oprand = if let Implicit = addr_mode {
+                    self.acc
+                } else {
+                    self.bus.cpu_read(oprand_addr)
+                };
+                let tmp: u16 = (oprand as u16) << 1;
+                self.set_status(C, oprand & (1 << 7) != 0);
+                self.set_status(Z, tmp & 0x00FF == 0);
+                self.set_status(N, (tmp & 0x0080) != 0);
+                let result = (tmp & 0x00FF) as u8;
+                if let Implicit = addr_mode {
+                    self.acc = result;
+                } else {
+                    self.bus.cpu_write(oprand_addr, result);
+                }
+
+                self.acc = self.acc | result;
+                self.update_status_Z_N(self.acc);
+            }
+            RLA => {
+                // Equivalent to ROL value then AND value
+                let oprand = if let Implicit = addr_mode {
+                    self.acc
+                } else {
+                    self.bus.cpu_read(oprand_addr)
+                };
+                let c_bits: u8 = if self.get_status(C) { 1 << 0 } else { 0 };
+                let tmp: u16 = ((oprand << 1) as u16) | (c_bits as u16);
+                self.set_status(C, tmp & 0xFF00 != 0);
+                let result = (tmp & 0x00FF) as u8;
+                self.update_status_Z_N(result);
+                self.set_status(C, oprand & (1 << 7) != 0);
+                if let Implicit = addr_mode {
+                    self.acc = result;
+                } else {
+                    self.bus.cpu_write(oprand_addr, result);
+                }
+
+                self.acc = self.acc & result;
+                self.set_status(Z, self.acc == 0);
+                self.set_status(N, (self.acc & 0x80) != 0);
+            }
+            SRE => {
+                // Equivalent to LSR value then EOR value
+                let oprand = if let Implicit = addr_mode {
+                    self.acc
+                } else {
+                    self.bus.cpu_read(oprand_addr)
+                };
+                self.set_status(C, oprand & 0x01 == 1);
+                let mut result = oprand >> 1;
+                self.update_status_Z_N(result);
+                if let Implicit = addr_mode {
+                    self.acc = result;
+                } else {
+                    self.bus.cpu_write(oprand_addr, result);
+                }
+
+                result = self.acc ^ result;
+                self.acc = result;
+                self.update_status_Z_N(result);
+            }
+            RRA => {
+                // Equivalent to ROR value then ADC value
+                let oprand = if let Implicit = addr_mode {
+                    self.acc
+                } else {
+                    self.bus.cpu_read(oprand_addr)
+                };
+                let c_bits: u8 = if self.get_status(C) { 1 << 0 } else { 0 };
+                let tmp: u16 = ((c_bits << 7) as u16) | (oprand as u16 >> 1);
+                let result_ror = (tmp & 0x00FF) as u8;
+                self.update_status_Z_N(result_ror);
+                self.set_status(C, oprand & 1 != 0);
+                if let Implicit = addr_mode {
+                    self.acc = result_ror;
+                } else {
+                    self.bus.cpu_write(oprand_addr, result_ror);
+                }
+
+                let result_adc: u8 = self
+                    .acc
+                    .wrapping_add(result_ror)
+                    .wrapping_add(self.get_status(C) as u8);
+                let tmp = self.acc as u16 + result_ror as u16 + self.get_status(C) as u16;
+                self.set_status(C, tmp > 0xFF);
+                self.set_status(Z, result_adc == 0);
+                let overflow: bool = ((result_adc as u16) ^ (result_ror as u16))
+                    & ((self.acc as u16) ^ (result_adc as u16))
+                    & 0x0080
+                    != 0;
+                self.set_status(V, overflow);
+                self.set_status(N, (tmp & 0x0080) != 0);
+                self.acc = result_adc;
             }
         }
     }
