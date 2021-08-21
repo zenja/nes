@@ -36,7 +36,7 @@ impl Cpu {
     }
 
     fn disassemble(&self, inst: &Instruction) -> String {
-        use super::super::spec::Opcode::*;
+        use super::spec::Opcode::*;
         use super::AddrMode::*;
 
         let mut asm: String = format!(

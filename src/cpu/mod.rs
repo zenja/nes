@@ -1,10 +1,14 @@
+pub mod addr;
+pub mod assembler;
+pub mod spec;
 pub mod trace;
 
-use super::{addr::AddrMode, spec::Spec};
-use crate::cartridge::Cartridge;
 use std::collections::HashMap;
 
 use crate::bus::Bus;
+use crate::cartridge::Cartridge;
+use addr::AddrMode;
+use spec::Spec;
 
 #[allow(dead_code)]
 pub struct Cpu {
@@ -36,7 +40,7 @@ impl Cpu {
             cycles: 0,
             total_cycles: 0,
             bus: Bus::new(),
-            opcode_to_spec: super::spec::opcode_to_spec(),
+            opcode_to_spec: spec::opcode_to_spec(),
         }
     }
 
@@ -136,7 +140,7 @@ impl Cpu {
         addr_mode: AddrMode,
         inc_cycle_on_page_crossed: bool,
     ) -> (u16, u8) {
-        use super::addr::AddrMode::*;
+        use addr::AddrMode::*;
 
         let next_u8: u8 = self.bus.cpu_read(self.pc);
         let next_u16: u16 = self.read_u16(self.pc);
@@ -207,8 +211,8 @@ impl Cpu {
 
     fn execute_inst(&mut self, inst: Instruction) {
         use self::CpuStatusBit::*;
-        use super::addr::AddrMode::*;
-        use super::spec::Opcode::*;
+        use addr::AddrMode::*;
+        use spec::Opcode::*;
 
         fn handle_branching(oprand_addr: u16, cycles: &mut u32, pc: &mut u16) {
             *cycles += 1;

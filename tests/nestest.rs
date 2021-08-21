@@ -1,6 +1,7 @@
-use cpu::cpu::Cpu;
-use nes::cpu;
 use std::path::PathBuf;
+
+use cpu::Cpu;
+use nes::cpu;
 
 #[test]
 fn test_nestest() {
