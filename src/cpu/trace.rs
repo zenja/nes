@@ -7,12 +7,8 @@ impl Cpu {
         let inst = self.peak_next_instruction();
         let inst_bytes: Vec<u8> = match inst.spec.addr_mode.size() {
             0 => vec![inst.opcode_byte],
-            1 => vec![inst.opcode_byte, self.bus.cpu_read(pc + 1)],
-            2 => vec![
-                inst.opcode_byte,
-                self.bus.cpu_read(pc + 1),
-                self.bus.cpu_read(pc + 2),
-            ],
+            1 => vec![inst.opcode_byte, self.read(pc + 1)],
+            2 => vec![inst.opcode_byte, self.read(pc + 1), self.read(pc + 2)],
             _ => panic!("invalid addr mode size: {}", inst.spec.addr_mode.size()),
         };
         let inst_bytes_str: String = inst_bytes
@@ -45,7 +41,7 @@ impl Cpu {
             inst.spec.opcode
         );
 
-        let next_u8: u8 = self.bus.cpu_read(self.pc + 1);
+        let next_u8: u8 = self.read(self.pc + 1);
         let next_u16: u16 = self.read_u16(self.pc + 1);
         let oprands_asm: String = match inst.spec.addr_mode {
             Absolute => match inst.spec.opcode {
@@ -53,39 +49,39 @@ impl Cpu {
                 _ => format!(
                     "${:04X?} = {:02X?}",
                     inst.oprand_addr,
-                    self.bus.cpu_read(inst.oprand_addr)
+                    self.read(inst.oprand_addr)
                 ),
             },
             AbsoluteX => format!(
                 "${:04X?},X @ {:04X?} = {:02X?}",
                 next_u16,
                 inst.oprand_addr,
-                self.bus.cpu_read(inst.oprand_addr)
+                self.read(inst.oprand_addr)
             ),
             AbsoluteY => format!(
                 "${:04X?},Y @ {:04X?} = {:02X?}",
                 next_u16,
                 inst.oprand_addr,
-                self.bus.cpu_read(inst.oprand_addr)
+                self.read(inst.oprand_addr)
             ),
             ZeroPage => format!(
                 "${:02X?} = {:02X?}",
                 inst.oprand_addr,
-                self.bus.cpu_read(inst.oprand_addr)
+                self.read(inst.oprand_addr)
             ),
             ZeroPageX => format!(
                 "${:02X?},X @ {:02X?} = {:02X?}",
                 next_u8,
                 inst.oprand_addr as u8,
-                self.bus.cpu_read(inst.oprand_addr)
+                self.read(inst.oprand_addr)
             ),
             ZeroPageY => format!(
                 "${:02X?},Y @ {:02X?} = {:02X?}",
                 next_u8,
                 inst.oprand_addr as u8,
-                self.bus.cpu_read(inst.oprand_addr)
+                self.read(inst.oprand_addr)
             ),
-            Immediate => format!("#${:02X?}", self.bus.cpu_read(inst.oprand_addr)),
+            Immediate => format!("#${:02X?}", self.read(inst.oprand_addr)),
             Relative => format!("${:04X}", inst.oprand_addr),
             Implicit => match inst.spec.opcode {
                 ASL | LSR | ROL | ROR => "A".to_string(),
@@ -100,8 +96,8 @@ impl Cpu {
                     } else {
                         addr_before_indirect.wrapping_add(1)
                     };
-                    let a = self.bus.cpu_read(a_addr);
-                    let b = self.bus.cpu_read(b_addr);
+                    let a = self.read(a_addr);
+                    let b = self.read(b_addr);
                     u16::from_le_bytes([a, b])
                 } else {
                     inst.oprand_addr
@@ -114,13 +110,13 @@ impl Cpu {
                     next_u8,
                     next_u8.wrapping_add(self.reg_x),
                     inst.oprand_addr,
-                    self.bus.cpu_read(inst.oprand_addr)
+                    self.read(inst.oprand_addr)
                 )
             }
             IndirectIndexed => {
                 let addr_before_add_y: u16 = if next_u8 == 0xFF {
-                    let a = self.bus.cpu_read(0x00FF);
-                    let b = self.bus.cpu_read(0x0000);
+                    let a = self.read(0x00FF);
+                    let b = self.read(0x0000);
                     u16::from_le_bytes([a, b])
                 } else {
                     self.read_u16(next_u8 as u16)
@@ -130,7 +126,7 @@ impl Cpu {
                     next_u8,
                     addr_before_add_y,
                     inst.oprand_addr,
-                    self.bus.cpu_read(inst.oprand_addr)
+                    self.read(inst.oprand_addr)
                 )
             }
         };
