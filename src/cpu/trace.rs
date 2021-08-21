@@ -1,7 +1,7 @@
-use super::Cpu;
 use super::Instruction;
+use super::CPU;
 
-impl Cpu {
+impl CPU {
     pub fn trace(&mut self) -> String {
         let pc = self.pc;
         let inst = self.peak_next_instruction();
@@ -16,7 +16,7 @@ impl Cpu {
             .map(|b| format!("{:02X?}", b))
             .collect::<Vec<String>>()
             .join(" ");
-        let asm = Cpu::disassemble(self, &inst);
+        let asm = CPU::disassemble(self, &inst);
         format!(
             "{:04X?}  {:8} {:31}  A:{:02X?} X:{:02X?} Y:{:02X?} P:{:02X?} SP:{:02X?} CYC:{}",
             pc,

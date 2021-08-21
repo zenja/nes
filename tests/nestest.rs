@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cpu::Cpu;
+use cpu::CPU;
 use nes::cpu;
 
 #[test]
@@ -8,7 +8,7 @@ fn test_nestest() {
     let mut nes_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     nes_path.push("tests/resources/nestest.nes");
 
-    let mut cpu = Cpu::new();
+    let mut cpu = CPU::new();
     cpu.load_ines(nes_path);
     cpu.reset();
     // set PC to C000 to run nestest in automation mode

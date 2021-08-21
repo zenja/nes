@@ -11,13 +11,13 @@ use addr::AddrMode;
 use spec::Spec;
 
 #[allow(dead_code)]
-pub struct Cpu {
+pub struct CPU {
     pub pc: u16,       // Program Counter
     sp: u8,            // Stack Pointer
     acc: u8,           // Accumulator
     reg_x: u8,         // Index Register X
     reg_y: u8,         // Index Register Y
-    status: CpuStatus, // Processor Status
+    status: CPUStatus, // Processor Status
 
     cycles: u32,       // Number of cycles remaining for this instruction
     total_cycles: u32, // Number of total cycles this CPU has executed
@@ -28,15 +28,15 @@ pub struct Cpu {
     opcode_to_spec: HashMap<u8, Spec>,
 }
 
-impl Cpu {
-    pub fn new() -> Cpu {
-        Cpu {
+impl CPU {
+    pub fn new() -> CPU {
+        CPU {
             pc: 0,
             sp: 0,
             acc: 0,
             reg_x: 0,
             reg_y: 0,
-            status: CpuStatus::new(),
+            status: CPUStatus::new(),
             cycles: 0,
             total_cycles: 0,
             bus: Bus::new(),
@@ -62,8 +62,8 @@ impl Cpu {
         self.reg_x = 0;
         self.reg_y = 0;
         self.status.reset();
-        self.status.set(CpuStatusBit::I, true);
-        self.status.set(CpuStatusBit::U, true);
+        self.status.set(CPUStatusBit::I, true);
+        self.status.set(CPUStatusBit::U, true);
 
         // Reset takes time
         self.cycles = 7;
@@ -73,7 +73,7 @@ impl Cpu {
         self.run_with_callback(|_| {});
     }
 
-    pub fn run_with_callback<F: FnMut(&mut Cpu)>(&mut self, mut callback: F) {
+    pub fn run_with_callback<F: FnMut(&mut CPU)>(&mut self, mut callback: F) {
         loop {
             let should_callback = self.cycles == 0;
             if should_callback {
@@ -90,14 +90,14 @@ impl Cpu {
 
     fn execute_next_instruction(&mut self) {
         // Always set the unused status flag bit to 1
-        self.set_status(self::CpuStatusBit::U, true);
+        self.set_status(self::CPUStatusBit::U, true);
 
         let inst = self.fetch_next_instruction();
         self.cycles = inst.cycles as u32;
         self.execute_inst(inst);
 
         // Always set the unused status flag bit to 1
-        self.set_status(self::CpuStatusBit::U, true);
+        self.set_status(self::CPUStatusBit::U, true);
     }
 
     // one cycle of execution
@@ -210,7 +210,7 @@ impl Cpu {
     }
 
     fn execute_inst(&mut self, inst: Instruction) {
-        use self::CpuStatusBit::*;
+        use self::CPUStatusBit::*;
         use addr::AddrMode::*;
         use spec::Opcode::*;
 
@@ -762,24 +762,24 @@ impl Cpu {
         u16::from_le_bytes([a, b])
     }
 
-    fn set_status(&mut self, bit: CpuStatusBit, set: bool) {
+    fn set_status(&mut self, bit: CPUStatusBit, set: bool) {
         self.status.set(bit, set);
     }
 
-    fn get_status(&self, bit: CpuStatusBit) -> bool {
+    fn get_status(&self, bit: CPUStatusBit) -> bool {
         self.status.get(bit)
     }
 
-    fn turn_on_status(&mut self, bit: CpuStatusBit) {
+    fn turn_on_status(&mut self, bit: CPUStatusBit) {
         self.status.turn_on(bit);
     }
 
-    fn turn_off_status(&mut self, bit: CpuStatusBit) {
+    fn turn_off_status(&mut self, bit: CPUStatusBit) {
         self.status.turn_off(bit);
     }
 
     fn update_status_Z_N(&mut self, result: u8) {
-        use self::CpuStatusBit::{N, Z};
+        use self::CPUStatusBit::{N, Z};
         self.set_status(Z, result == 0);
         self.set_status(N, result & 0b1000_0000 != 0);
     }
@@ -811,12 +811,12 @@ impl Cpu {
 
 #[allow(dead_code)]
 #[derive(Clone)]
-struct CpuStatus {
+struct CPUStatus {
     bits: u8,
 }
 
 #[derive(Clone, Copy)]
-enum CpuStatusBit {
+enum CPUStatusBit {
     C,
     Z,
     I,
@@ -827,7 +827,7 @@ enum CpuStatusBit {
     N,
 }
 
-impl CpuStatusBit {
+impl CPUStatusBit {
     fn bit_offset(self) -> u8 {
         match self {
             Self::C => 0,
@@ -842,9 +842,9 @@ impl CpuStatusBit {
     }
 }
 
-impl CpuStatus {
-    fn new() -> CpuStatus {
-        CpuStatus { bits: 0 }
+impl CPUStatus {
+    fn new() -> CPUStatus {
+        CPUStatus { bits: 0 }
     }
 
     fn reset(&mut self) {
@@ -855,11 +855,11 @@ impl CpuStatus {
         self.bits = bits;
     }
 
-    fn get(&self, bit: CpuStatusBit) -> bool {
+    fn get(&self, bit: CPUStatusBit) -> bool {
         self.bits & (1 << bit.bit_offset()) != 0
     }
 
-    fn set(&mut self, bit: CpuStatusBit, set: bool) {
+    fn set(&mut self, bit: CPUStatusBit, set: bool) {
         if set {
             self.turn_on(bit);
         } else {
@@ -867,11 +867,11 @@ impl CpuStatus {
         }
     }
 
-    fn turn_on(&mut self, bit: CpuStatusBit) {
+    fn turn_on(&mut self, bit: CPUStatusBit) {
         self.bits = self.bits | (1 << bit.bit_offset());
     }
 
-    fn turn_off(&mut self, bit: CpuStatusBit) {
+    fn turn_off(&mut self, bit: CPUStatusBit) {
         self.bits = self.bits & !(1 << bit.bit_offset());
     }
 }
@@ -888,14 +888,14 @@ pub struct Instruction {
 mod test {
     use super::*;
 
-    fn new_reset_cpu() -> Cpu {
-        let mut cpu = Cpu::new();
+    fn new_reset_cpu() -> CPU {
+        let mut cpu = CPU::new();
         cpu.reset();
         cpu
     }
 
-    fn new_cpu_with_program(program: Vec<u8>) -> Cpu {
-        let mut cpu = Cpu::new();
+    fn new_cpu_with_program(program: Vec<u8>) -> CPU {
+        let mut cpu = CPU::new();
         cpu.reset();
         cpu.load_program(program);
         cpu
@@ -1009,9 +1009,9 @@ mod test {
 
     #[test]
     fn test_cpu_status() {
-        use super::CpuStatusBit::*;
+        use super::CPUStatusBit::*;
 
-        let mut status = CpuStatus::new();
+        let mut status = CPUStatus::new();
         assert_eq!(status.bits, 0b0000_0000);
 
         status.set(C, true);
