@@ -1,4 +1,5 @@
 use crate::cartridge::Cartridge;
+use crate::ppu;
 
 /*
   _______________ $10000  _______________
@@ -37,6 +38,7 @@ const CPU_RAM_SIZE: usize = 2048;
 pub struct Bus {
     cpu_ram: [u8; CPU_RAM_SIZE],
     cart_opt: Option<Cartridge>,
+    ppu: ppu::PPU,
 }
 
 impl Bus {
@@ -45,6 +47,7 @@ impl Bus {
         Bus {
             cpu_ram: [0; CPU_RAM_SIZE],
             cart_opt: None,
+            ppu: ppu::PPU::new(),
         }
     }
 

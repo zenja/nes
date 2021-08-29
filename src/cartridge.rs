@@ -112,6 +112,23 @@ impl Cartridge {
             (_, false) => false,
         }
     }
+
+    pub fn ppu_read(&self, addr: u16) -> (u8, bool) {
+        match self.mapper.ppu_read_mapping(addr) {
+            (mapped_addr, true) => (self.chr_rom[mapped_addr as usize], true),
+            (_, false) => (0u8, false),
+        }
+    }
+
+    pub fn ppu_write(&mut self, addr: u16, value: u8) -> bool {
+        match self.mapper.ppu_read_mapping(addr) {
+            (mapped_addr, true) => {
+                self.chr_rom[mapped_addr as usize] = value;
+                true
+            }
+            (_, false) => false,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

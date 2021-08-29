@@ -44,4 +44,23 @@ impl super::mapper::Mapper for Mapper0 {
         }
         return (0u16, false);
     }
+
+    fn ppu_read_mapping(&self, addr: u16) -> (u16, bool) {
+        // There is no mapping required for PPU
+        // PPU Address Bus          CHR ROM
+        // 0x0000 -> 0x1FFF: Map    0x0000 -> 0x1FFF
+        if addr >= 0x0000 && addr <= 0x1FFF {
+            return (addr, true);
+        }
+        return (0u16, false);
+    }
+
+    fn ppu_write_mapping(&self, addr: u16) -> (u16, bool) {
+        if addr >= 0x0000 && addr <= 0x1FFF {
+            if self.num_chr_banks == 0 {
+                return (addr, true);
+            }
+        }
+        return (0u16, false);
+    }
 }
