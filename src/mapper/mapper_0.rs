@@ -12,7 +12,10 @@ impl Mapper0 {
     }
 }
 impl super::mapper::Mapper for Mapper0 {
-    fn cpu_read_mapping(&self, addr: u16) -> (u16, bool) {
+    fn cpu_read_mapping(&self, addr: u16) -> Option<u16> {
+        if addr < 0x8000 {
+            return None;
+        }
         // if PRGROM is 16KB
         //     CPU Address Bus          PRG ROM
         //     0x8000 -> 0xBFFF: Map    0x0000 -> 0x3FFF
@@ -20,47 +23,44 @@ impl super::mapper::Mapper for Mapper0 {
         // if PRGROM is 32KB
         //     CPU Address Bus          PRG ROM
         //     0x8000 -> 0xFFFF: Map    0x0000 -> 0x7FFF
-        if addr >= 0x8000 && addr <= 0xFFFF {
-            let mapped_addr = addr
-                & (if self.num_prg_banks > 1 {
-                    0x7FFF
-                } else {
-                    0x3FFF
-                });
-            return (mapped_addr, true);
-        }
-        return (0u16, false);
+        let mapped_addr = addr
+            & (if self.num_prg_banks > 1 {
+                0x7FFF
+            } else {
+                0x3FFF
+            });
+        return Some(mapped_addr);
     }
 
-    fn cpu_write_mapping(&self, addr: u16) -> (u16, bool) {
-        if addr >= 0x8000 && addr <= 0xFFFF {
-            let mapped_addr = addr
-                & (if self.num_prg_banks > 1 {
-                    0x7FFF
-                } else {
-                    0x3FFF
-                });
-            return (mapped_addr, true);
+    fn cpu_write_mapping(&self, addr: u16) -> Option<u16> {
+        if addr < 0x8000 {
+            return None;
         }
-        return (0u16, false);
+        let mapped_addr = addr
+            & (if self.num_prg_banks > 1 {
+                0x7FFF
+            } else {
+                0x3FFF
+            });
+        return Some(mapped_addr);
     }
 
-    fn ppu_read_mapping(&self, addr: u16) -> (u16, bool) {
+    fn ppu_read_mapping(&self, addr: u16) -> Option<u16> {
         // There is no mapping required for PPU
         // PPU Address Bus          CHR ROM
         // 0x0000 -> 0x1FFF: Map    0x0000 -> 0x1FFF
-        if addr >= 0x0000 && addr <= 0x1FFF {
-            return (addr, true);
+        if addr <= 0x1FFF {
+            return Some(addr);
         }
-        return (0u16, false);
+        return None;
     }
 
-    fn ppu_write_mapping(&self, addr: u16) -> (u16, bool) {
-        if addr >= 0x0000 && addr <= 0x1FFF {
+    fn ppu_write_mapping(&self, addr: u16) -> Option<u16> {
+        if addr <= 0x1FFF {
             if self.num_chr_banks == 0 {
-                return (addr, true);
+                return Some(addr);
             }
         }
-        return (0u16, false);
+        return None;
     }
 }

@@ -53,9 +53,9 @@ impl Bus {
 
     pub fn cpu_read(&self, addr: u16) -> u8 {
         if let Some(cart) = &self.cart_opt {
-            let (v, ok) = cart.cpu_read(addr);
-            if ok {
-                return v;
+            let v = cart.cpu_read(addr);
+            if v.is_some() {
+                return v.unwrap();
             }
         }
 

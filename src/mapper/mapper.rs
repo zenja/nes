@@ -1,8 +1,8 @@
 pub trait Mapper {
-    fn cpu_read_mapping(&self, addr: u16) -> (u16, bool);
-    fn cpu_write_mapping(&self, addr: u16) -> (u16, bool);
-    fn ppu_read_mapping(&self, addr: u16) -> (u16, bool);
-    fn ppu_write_mapping(&self, addr: u16) -> (u16, bool);
+    fn cpu_read_mapping(&self, addr: u16) -> Option<u16>;
+    fn cpu_write_mapping(&self, addr: u16) -> Option<u16>;
+    fn ppu_read_mapping(&self, addr: u16) -> Option<u16>;
+    fn ppu_write_mapping(&self, addr: u16) -> Option<u16>;
 }
 
 impl core::fmt::Debug for dyn Mapper {

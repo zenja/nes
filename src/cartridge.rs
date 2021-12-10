@@ -96,37 +96,35 @@ impl Cartridge {
         }
     }
 
-    pub fn cpu_read(&self, addr: u16) -> (u8, bool) {
-        match self.mapper.cpu_read_mapping(addr) {
-            (mapped_addr, true) => (self.prg_rom[mapped_addr as usize], true),
-            (_, false) => (0u8, false),
-        }
+    pub fn cpu_read(&self, addr: u16) -> Option<u8> {
+        self.mapper
+            .cpu_read_mapping(addr)
+            .map(|a| self.prg_rom[a as usize])
     }
 
     pub fn cpu_write(&mut self, addr: u16, value: u8) -> bool {
         match self.mapper.cpu_read_mapping(addr) {
-            (mapped_addr, true) => {
+            Some(mapped_addr) => {
                 self.prg_rom[mapped_addr as usize] = value;
                 true
             }
-            (_, false) => false,
+            None => false,
         }
     }
 
-    pub fn ppu_read(&self, addr: u16) -> (u8, bool) {
-        match self.mapper.ppu_read_mapping(addr) {
-            (mapped_addr, true) => (self.chr_rom[mapped_addr as usize], true),
-            (_, false) => (0u8, false),
-        }
+    pub fn ppu_read(&self, addr: u16) -> Option<u8> {
+        self.mapper
+            .ppu_read_mapping(addr)
+            .map(|a| self.chr_rom[a as usize])
     }
 
     pub fn ppu_write(&mut self, addr: u16, value: u8) -> bool {
         match self.mapper.ppu_read_mapping(addr) {
-            (mapped_addr, true) => {
+            Some(mapped_addr) => {
                 self.chr_rom[mapped_addr as usize] = value;
                 true
             }
-            (_, false) => false,
+            None => false,
         }
     }
 }
