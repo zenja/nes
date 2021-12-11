@@ -22,7 +22,7 @@ fn test_nestest() {
     let mut line_idx = 0;
     cpu.run_with_callback(|cpu| {
         let trace_line = cpu.trace();
-        println!("{}", trace_line);
+        // println!("{}", trace_line);
         assert_eq!(trace_line, nes_log_lines[line_idx]);
         line_idx += 1;
     });
