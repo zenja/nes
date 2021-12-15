@@ -1,7 +1,7 @@
 extern crate nes;
 extern crate sdl2;
 
-use nes::ui::NesSDLScreen;
+use nes::graphics::{NesFrame, NesSDLScreen};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -18,6 +18,11 @@ pub fn main() -> Result<(), String> {
     screen.present();
     let mut event_pump = sdl_context.event_pump()?;
 
+    let mut frame = NesFrame::new();
+    frame.set_pixel(50, 50, 255, 0, 0);
+    frame.set_pixel(100, 100, 0, 255, 0);
+    frame.set_pixel(150, 150, 0, 0, 255);
+
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -31,9 +36,7 @@ pub fn main() -> Result<(), String> {
         }
 
         screen.clear();
-        screen.draw(50, 50, 255, 0, 0);
-        screen.draw(100, 100, 0, 255, 0);
-        screen.draw(150, 150, 0, 0, 255);
+        screen.draw_frame(&frame);
         screen.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         // The rest of the game loop goes here...

@@ -7,6 +7,10 @@ use std::ops::{Deref, DerefMut};
 const NES_WIDTH: u32 = 32 * 8;
 const NES_HEIGHT: u32 = 30 * 8;
 
+// ----------------------------------------------------------------------------
+// NesSDLScreen
+// ----------------------------------------------------------------------------
+
 pub struct NesSDLScreen {
     canvas: WindowCanvas,
     scaling_factor: u32,
@@ -49,6 +53,14 @@ impl NesSDLScreen {
             .unwrap();
         self.canvas.set_draw_color(prev_color);
     }
+
+    pub fn draw_frame(&mut self, frame: &NesFrame) {
+        for (x, row) in frame.pixels.iter().enumerate() {
+            for (y, color) in row.iter().enumerate() {
+                self.draw(x as u32, y as u32, color.0, color.1, color.2);
+            }
+        }
+    }
 }
 
 impl Deref for NesSDLScreen {
@@ -62,5 +74,25 @@ impl Deref for NesSDLScreen {
 impl DerefMut for NesSDLScreen {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.canvas
+    }
+}
+
+// ----------------------------------------------------------------------------
+// NesFrame
+// ----------------------------------------------------------------------------
+
+pub struct NesFrame {
+    pixels: [[(u8, u8, u8); NES_WIDTH as usize]; NES_HEIGHT as usize],
+}
+
+impl NesFrame {
+    pub fn new() -> NesFrame {
+        NesFrame {
+            pixels: [[(0u8, 0u8, 0u8); NES_WIDTH as usize]; NES_HEIGHT as usize],
+        }
+    }
+
+    pub fn set_pixel(&mut self, x: u32, y: u32, r: u8, g: u8, b: u8) {
+        self.pixels[x as usize][y as usize] = (r, g, b)
     }
 }
