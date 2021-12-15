@@ -1,7 +1,7 @@
 extern crate nes;
 extern crate sdl2;
 
-use nes::graphics::{NesFrame, NesSDLScreen};
+use nes::graphics::{NesFrame, NesSDLScreen, Palette, Tile};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -22,6 +22,21 @@ pub fn main() -> Result<(), String> {
     frame.set_pixel(50, 50, 255, 0, 0);
     frame.set_pixel(100, 100, 0, 255, 0);
     frame.set_pixel(150, 150, 0, 0, 255);
+
+    let palette = Palette {
+        colors: [
+            (0, 0, 0),
+            (0xc9, 0x2a, 0x2a),
+            (0xfa, 0xb0, 0x05),
+            (0x49, 0x50, 0x57),
+        ],
+    };
+    let tile = Tile::with_full_bits(&[
+        1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
+        0, 0, 3, 2, 2, 2, 0, 0, 0, 0, 3, 3, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 3, 2,
+        2, 2, 2, 0,
+    ])?;
+    frame.draw_tile(true, 10, 20, &tile, &palette);
 
     'running: loop {
         for event in event_pump.poll_iter() {
