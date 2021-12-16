@@ -37,26 +37,24 @@ const CPU_RAM_SIZE: usize = 2048;
 #[allow(dead_code)]
 pub struct Bus {
     pub cpu_ram: [u8; CPU_RAM_SIZE],
-    pub cart_opt: Option<Cartridge>,
+    pub cart: Cartridge,
     pub ppu: ppu::PPU,
 }
 
 impl Bus {
     #[allow(dead_code)]
-    pub fn new() -> Bus {
+    pub fn new(cart: Cartridge) -> Bus {
         Bus {
             cpu_ram: [0; CPU_RAM_SIZE],
-            cart_opt: None,
+            cart: cart,
             ppu: ppu::PPU::new(),
         }
     }
 
     pub fn cpu_read(&self, addr: u16) -> u8 {
-        if let Some(cart) = &self.cart_opt {
-            let v = cart.cpu_read(addr);
-            if v.is_some() {
-                return v.unwrap();
-            }
+        let v = self.cart.cpu_read(addr);
+        if v.is_some() {
+            return v.unwrap();
         }
 
         match addr {
@@ -66,21 +64,15 @@ impl Bus {
     }
 
     pub fn cpu_write(&mut self, addr: u16, value: u8) {
-        if let Some(ref mut cart) = self.cart_opt {
-            let ok = cart.cpu_write(addr, value);
-            if ok {
-                return;
-            }
+        let ok = self.cart.cpu_write(addr, value);
+        if ok {
+            return;
         }
 
         match addr {
             0x0000..=0x1FFF => self.cpu_ram[(addr & 0b0000_0111_1111_1111) as usize] = value,
             _ => (),
         }
-    }
-
-    pub fn insert_cartridge(&mut self, cart: Cartridge) {
-        self.cart_opt = Some(cart);
     }
 }
 
@@ -90,7 +82,7 @@ mod test {
 
     #[test]
     fn test_mem_read_write() {
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(Cartridge::new_dummy());
         bus.cpu_write(0x0000, 0xFF);
         assert_eq!(bus.cpu_read(0x0000), 0xFF);
         assert_eq!(bus.cpu_read(0x0800), 0xFF);

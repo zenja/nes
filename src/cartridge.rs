@@ -96,6 +96,19 @@ impl Cartridge {
         }
     }
 
+    pub fn new_dummy() -> Cartridge {
+        use crate::mapper::mapper_0::Mapper0;
+        Cartridge {
+            mapper_id: 0u8,
+            mapper: Box::new(Mapper0::new(1, 1)),
+            mirror: Mirror::Horizontal,
+            num_prg_banks: 1,
+            num_chr_banks: 1,
+            prg_rom: vec![],
+            chr_rom: vec![],
+        }
+    }
+
     pub fn cpu_read(&self, addr: u16) -> Option<u8> {
         self.mapper
             .cpu_read_mapping(addr)

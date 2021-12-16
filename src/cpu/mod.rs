@@ -29,9 +29,9 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new() -> CPU {
+    pub fn new(bus: Bus) -> CPU {
         CPU {
-            pc: 0,
+            pc: 0x8000,
             sp: 0,
             acc: 0,
             reg_x: 0,
@@ -39,20 +39,9 @@ impl CPU {
             status: CPUStatus::new(),
             cycles: 0,
             total_cycles: 0,
-            bus: Bus::new(),
+            bus: bus,
             opcode_to_spec: spec::opcode_to_spec(),
         }
-    }
-
-    pub fn load_program(&mut self, program: Vec<u8>) {
-        let cart = Cartridge::new_from_program(program);
-        self.bus.insert_cartridge(cart);
-        self.pc = 0x8000;
-    }
-
-    pub fn load_ines<P: AsRef<std::path::Path>>(&mut self, path: P) {
-        let cart = Cartridge::new_from_file(path).unwrap();
-        self.bus.insert_cartridge(cart);
     }
 
     pub fn reset(&mut self) {
@@ -888,23 +877,20 @@ pub struct Instruction {
 mod test {
     use super::*;
 
-    fn new_reset_cpu() -> CPU {
-        let mut cpu = CPU::new();
-        cpu.reset();
-        cpu
-    }
-
     fn new_cpu_with_program(program: Vec<u8>) -> CPU {
-        let mut cpu = CPU::new();
+        let cart = Cartridge::new_from_program(program);
+        let bus = Bus::new(cart);
+        let mut cpu = CPU::new(bus);
         cpu.reset();
-        cpu.load_program(program);
+        cpu.pc = 0x8000;
         cpu
     }
 
     #[test]
     fn test_load_program() {
-        let mut cpu = new_reset_cpu();
-        cpu.load_program(vec![0x01, 0x23, 0x34, 0x00]);
+        let cart = Cartridge::new_from_program(vec![0x01, 0x23, 0x34, 0x00]);
+        let bus = Bus::new(cart);
+        let cpu = CPU::new(bus);
         assert_eq!(cpu.read(cpu.pc), 0x01);
         assert_eq!(cpu.read(cpu.pc + 1), 0x23);
         assert_eq!(cpu.read(cpu.pc + 2), 0x34);

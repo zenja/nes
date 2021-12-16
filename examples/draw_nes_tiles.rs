@@ -4,6 +4,8 @@ extern crate sdl2;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use nes::bus::Bus;
+use nes::cartridge::Cartridge;
 use nes::cpu::CPU;
 use nes::graphics::{NesFrame, NesSDLScreen, Palette};
 use sdl2::event::Event;
@@ -13,8 +15,9 @@ use sdl2::pixels::Color;
 fn main() -> Result<(), String> {
     let mut nes_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     nes_path.push("tests/resources/pacman.nes");
-    let mut cpu = CPU::new();
-    cpu.load_ines(nes_path);
+    let cart = Cartridge::new_from_file(nes_path).unwrap();
+    let bus = Bus::new(cart);
+    let mut cpu = CPU::new(bus);
     cpu.reset();
 
     let sdl_context = sdl2::init()?;
@@ -35,7 +38,7 @@ fn main() -> Result<(), String> {
         ],
     };
     let mut frame = NesFrame::new();
-    let cart = &cpu.bus.cart_opt.unwrap();
+    let cart = &cpu.bus.cart;
     // draw for bank 0
     for i in 0..256 {
         let tile = cpu.bus.ppu.load_tile(cart, 0, i).unwrap();
