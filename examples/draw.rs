@@ -22,21 +22,6 @@ pub fn main() -> Result<(), String> {
     frame.set_pixel(100, 150, 0, 255, 0);
     frame.set_pixel(150, 200, 0, 0, 255);
 
-    let palette = Palette {
-        colors: [
-            (0, 0, 0),
-            (0xc9, 0x2a, 0x2a),
-            (0xfa, 0xb0, 0x05),
-            (0x49, 0x50, 0x57),
-        ],
-    };
-    let tile = Tile::with_full_bits(&[
-        1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
-        0, 0, 3, 2, 2, 2, 0, 0, 0, 0, 3, 3, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 3, 2,
-        2, 2, 2, 0,
-    ])?;
-    frame.draw_tile(true, 10, 20, &tile, &palette);
-
     let mut event_pump = sdl_context.event_pump()?;
 
     'running: loop {

@@ -150,21 +150,6 @@ impl Tile {
         }
         Ok(Tile { rows: rows })
     }
-
-    pub fn with_full_bits(bits: &[u8]) -> Result<Tile, String> {
-        if bits.len() != 64 {
-            return Err(format!("Length of bits should be 64 but is {}", bits.len()));
-        }
-
-        let mut rows = [[0; 8]; 8];
-        for i in 0..64 {
-            if bits[i] > 3 {
-                return Err(format!("Invalid bit: {}", bits[i]));
-            }
-            rows[i / 8][i % 8] = bits[i];
-        }
-        Ok(Tile { rows: rows })
-    }
 }
 
 // ----------------------------------------------------------------------------
