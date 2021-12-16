@@ -16,12 +16,11 @@ pub fn main() -> Result<(), String> {
     screen.set_draw_color(Color::RGB(255, 255, 255));
     screen.clear();
     screen.present();
-    let mut event_pump = sdl_context.event_pump()?;
 
     let mut frame = NesFrame::new();
-    frame.set_pixel(50, 50, 255, 0, 0);
-    frame.set_pixel(100, 100, 0, 255, 0);
-    frame.set_pixel(150, 150, 0, 0, 255);
+    frame.set_pixel(50, 100, 255, 0, 0);
+    frame.set_pixel(100, 150, 0, 255, 0);
+    frame.set_pixel(150, 200, 0, 0, 255);
 
     let palette = Palette {
         colors: [
@@ -37,6 +36,8 @@ pub fn main() -> Result<(), String> {
         2, 2, 2, 0,
     ])?;
     frame.draw_tile(true, 10, 20, &tile, &palette);
+
+    let mut event_pump = sdl_context.event_pump()?;
 
     'running: loop {
         for event in event_pump.poll_iter() {

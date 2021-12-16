@@ -36,9 +36,9 @@ const CPU_RAM_SIZE: usize = 2048;
 
 #[allow(dead_code)]
 pub struct Bus {
-    cpu_ram: [u8; CPU_RAM_SIZE],
-    cart_opt: Option<Cartridge>,
-    ppu: ppu::PPU,
+    pub cpu_ram: [u8; CPU_RAM_SIZE],
+    pub cart_opt: Option<Cartridge>,
+    pub ppu: ppu::PPU,
 }
 
 impl Bus {

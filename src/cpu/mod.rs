@@ -22,7 +22,7 @@ pub struct CPU {
     cycles: u32,       // Number of cycles remaining for this instruction
     total_cycles: u32, // Number of total cycles this CPU has executed
 
-    bus: Bus,
+    pub bus: Bus,
 
     // Internal helpers
     opcode_to_spec: HashMap<u8, Spec>,

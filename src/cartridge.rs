@@ -5,13 +5,13 @@ const CHR_ROM_PAGE_SIZE: usize = 8192;
 
 #[derive(Debug)]
 pub struct Cartridge {
-    mapper_id: u8,
-    mapper: Box<dyn mapper::Mapper>,
-    mirror: Mirror,
-    num_prg_banks: u8,
-    num_chr_banks: u8,
-    prg_rom: Vec<u8>,
-    chr_rom: Vec<u8>,
+    pub mapper_id: u8,
+    pub mapper: Box<dyn mapper::Mapper>,
+    pub mirror: Mirror,
+    pub num_prg_banks: u8,
+    pub num_chr_banks: u8,
+    pub prg_rom: Vec<u8>,
+    pub chr_rom: Vec<u8>,
 }
 
 impl Cartridge {
@@ -130,7 +130,7 @@ impl Cartridge {
 }
 
 #[derive(Debug, PartialEq)]
-enum Mirror {
+pub enum Mirror {
     Vertical,
     Horizontal,
     FourScreen,
