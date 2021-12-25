@@ -44,10 +44,11 @@ pub struct Bus {
 impl Bus {
     #[allow(dead_code)]
     pub fn new(cart: Cartridge) -> Bus {
+        let ppu = ppu::PPU::new(&cart);
         Bus {
             cpu_ram: [0; CPU_RAM_SIZE],
             cart: cart,
-            ppu: ppu::PPU::new(),
+            ppu: ppu,
         }
     }
 

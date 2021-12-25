@@ -41,14 +41,14 @@ fn main() -> Result<(), String> {
     let cart = &cpu.bus.cart;
     // draw for bank 0
     for i in 0..256 {
-        let tile = cpu.bus.ppu.load_tile(cart, 0, i).unwrap();
+        let tile = cpu.bus.ppu.load_tile(0, i).unwrap();
         let x = (i % 32) * 8;
         let y = (i / 32) * 8;
         frame.draw_tile(false, x, y, &tile, &palette);
     }
     // draw for bank 1
     for i in 0..256 {
-        let tile = cpu.bus.ppu.load_tile(cart, 1, i).unwrap();
+        let tile = cpu.bus.ppu.load_tile(1, i).unwrap();
         let x = (i % 32) * 8;
         let y = 100 + (i / 32) * 8;
         frame.draw_tile(false, x, y, &tile, &palette);
