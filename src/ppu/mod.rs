@@ -1,3 +1,5 @@
+mod registers;
+
 use crate::{cartridge::Cartridge, graphics::Tile};
 
 pub struct PPU {
