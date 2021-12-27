@@ -6,7 +6,6 @@ pub mod trace;
 use std::collections::HashMap;
 
 use crate::bus::Bus;
-use crate::cartridge::Cartridge;
 use addr::AddrMode;
 use spec::Spec;
 
@@ -876,6 +875,7 @@ pub struct Instruction {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::cartridge::Cartridge;
 
     fn new_cpu_with_program(program: Vec<u8>) -> CPU {
         let cart = Cartridge::new_from_program(program);

@@ -1,4 +1,4 @@
-struct AddrRegister {
+pub struct AddrRegister {
     hi: u8,
     lo: u8,
     write_to_hi: bool,

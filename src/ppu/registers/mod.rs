@@ -1,2 +1,2 @@
-mod addr;
-mod ctrl;
+pub mod addr;
+pub mod ctrl;

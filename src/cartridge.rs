@@ -142,7 +142,7 @@ impl Cartridge {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Mirror {
     Vertical,
     Horizontal,
