@@ -31,7 +31,7 @@ impl CPU {
         )
     }
 
-    fn disassemble(&self, inst: &Instruction) -> String {
+    fn disassemble(&mut self, inst: &Instruction) -> String {
         use super::spec::Opcode::*;
         use super::AddrMode::*;
 

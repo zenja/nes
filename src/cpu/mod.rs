@@ -124,7 +124,7 @@ impl CPU {
 
     // return (oprand addr, cycles to advance)
     fn peak_oprand_addr_and_cycles(
-        &self,
+        &mut self,
         addr_mode: AddrMode,
         inc_cycle_on_page_crossed: bool,
     ) -> (u16, u8) {
@@ -736,7 +736,7 @@ impl CPU {
         }
     }
 
-    fn read(&self, addr: u16) -> u8 {
+    fn read(&mut self, addr: u16) -> u8 {
         self.bus.cpu_read(addr)
     }
 
@@ -744,7 +744,7 @@ impl CPU {
         self.bus.cpu_write(addr, value);
     }
 
-    fn read_u16(&self, addr: u16) -> u16 {
+    fn read_u16(&mut self, addr: u16) -> u16 {
         let a = self.read(addr);
         let b = self.read(addr + 1);
         u16::from_le_bytes([a, b])
@@ -890,7 +890,7 @@ mod test {
     fn test_load_program() {
         let cart = Cartridge::new_from_program(vec![0x01, 0x23, 0x34, 0x00]);
         let bus = Bus::new(cart);
-        let cpu = CPU::new(bus);
+        let mut cpu = CPU::new(bus);
         assert_eq!(cpu.read(cpu.pc), 0x01);
         assert_eq!(cpu.read(cpu.pc + 1), 0x23);
         assert_eq!(cpu.read(cpu.pc + 2), 0x34);

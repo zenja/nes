@@ -37,6 +37,10 @@ impl AddrRegister {
     pub fn get(&self) -> u16 {
         ((self.hi as u16) << 8) | (self.lo as u16)
     }
+
+    pub fn reset_latch(&mut self) {
+        self.write_to_hi = true;
+    }
 }
 
 #[cfg(test)]

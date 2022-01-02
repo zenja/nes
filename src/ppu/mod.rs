@@ -5,6 +5,10 @@ use crate::{cartridge::Cartridge, graphics::Tile};
 use registers::addr::AddrRegister;
 use registers::ctrl::CtrlRegister;
 
+use self::registers::mask::MaskRegister;
+use self::registers::scroll::ScrollRegister;
+use self::registers::status::StatusRegister;
+
 pub struct PPU {
     chr_rom: Vec<u8>,
     vram: [u8; 2048],
@@ -14,6 +18,9 @@ pub struct PPU {
     // registers
     addr_reg: AddrRegister,
     ctrl_reg: CtrlRegister,
+    status_reg: StatusRegister,
+    scroll_reg: ScrollRegister,
+    mask_reg: MaskRegister,
 
     // internal data buffer
     data_buf: u8,
@@ -28,7 +35,60 @@ impl PPU {
             mirror: cart.mirror,
             addr_reg: AddrRegister::new(),
             ctrl_reg: CtrlRegister::new(),
+            status_reg: StatusRegister::new(),
+            scroll_reg: ScrollRegister::new(),
+            mask_reg: MaskRegister::new(),
             data_buf: 0,
+        }
+    }
+
+    pub fn cpu_read(&mut self, cpu_addr: u16) -> u8 {
+        match cpu_addr {
+            0x2000..=0x3FFF => match cpu_addr & 0x0007 {
+                // Ctrl register
+                0x0000 => panic!("PPU control register is not readable!"),
+                // Mask register
+                0x0001 => panic!("PPU mask register is not readable!"),
+                // Status register
+                0x0002 => self.read_status_reg(),
+                // OAM address register
+                0x0003 => panic!("PPU OAM address register is not readable!"),
+                // OAM data register
+                0x0004 => 0, // TODO
+                // Scroll register
+                0x0005 => panic!("PPU scroll address register is not readable!"),
+                // PPU address register
+                0x0006 => panic!("PPU address address register is not readable!"),
+                // PPU data register
+                0x0007 => self.read_data_reg(),
+                _ => panic!("impossible"),
+            },
+            _ => panic!("CPU read address {:04X?} not supported for PPU!", cpu_addr),
+        }
+    }
+
+    pub fn cpu_write(&mut self, cpu_addr: u16, value: u8) {
+        match cpu_addr {
+            0x2000..=0x3FFF => match cpu_addr & 0x0007 {
+                // Ctrl register
+                0x0000 => self.write_ctrl_reg(value),
+                // Mask register
+                0x0001 => self.write_mask_reg(value),
+                // Status register
+                0x0002 => panic!("PPU status register is not writable!"),
+                // OAM address register
+                0x0003 => (), // TODO
+                // OAM data register
+                0x0004 => (), // TODO
+                // Scroll register
+                0x0005 => self.write_scroll_reg(value),
+                // PPU address register
+                0x0006 => self.write_addr_reg(value),
+                // PPU data register
+                0x0007 => self.write_data_reg(value),
+                _ => panic!("impossible"),
+            },
+            _ => panic!("CPU write address {:04X?} not supported for PPU!", cpu_addr),
         }
     }
 
@@ -170,6 +230,23 @@ impl PPU {
             // TODO more kinds of mirroring?
             _ => logical_vram_idx,
         }
+    }
+
+    pub fn read_status_reg(&mut self) -> u8 {
+        let value = self.status_reg.read();
+        // reading status register changes some status
+        self.status_reg.set_vblank_started(false);
+        self.addr_reg.reset_latch();
+        self.scroll_reg.reset_latch();
+        value
+    }
+
+    pub fn write_mask_reg(&mut self, value: u8) {
+        self.mask_reg.write(value);
+    }
+
+    pub fn write_scroll_reg(&mut self, value: u8) {
+        self.scroll_reg.write(value);
     }
 }
 

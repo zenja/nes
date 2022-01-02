@@ -52,7 +52,7 @@ impl Bus {
         }
     }
 
-    pub fn cpu_read(&self, addr: u16) -> u8 {
+    pub fn cpu_read(&mut self, addr: u16) -> u8 {
         let v = self.cart.cpu_read(addr);
         if v.is_some() {
             return v.unwrap();
@@ -60,7 +60,13 @@ impl Bus {
 
         match addr {
             0x0000..=0x1FFF => self.cpu_ram[(addr & 0b0000_0111_1111_1111) as usize],
-            _ => 0u8,
+            // PPU registers mapping
+            0x2000..=0x3FFF => self.ppu.cpu_read(addr),
+            // TODO APU
+            0x4000..=0x4015 => 0,
+            // TODO controller register
+            0x4016 | 0x4017 => 0,
+            _ => 0,
         }
     }
 
@@ -72,6 +78,13 @@ impl Bus {
 
         match addr {
             0x0000..=0x1FFF => self.cpu_ram[(addr & 0b0000_0111_1111_1111) as usize] = value,
+            0x2000..=0x3FFF => self.ppu.cpu_write(addr, value),
+            // TODO DMA register
+            0x4014 => (),
+            // TODO APU
+            0x4000..=0x4013 | 0x4015 => (),
+            // TODO controller register
+            0x4016 | 0x4017 => (),
             _ => (),
         }
     }

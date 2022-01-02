@@ -29,6 +29,32 @@ bitflags! {
         const UNUSED_4                = 0b00010000;
         const SPRITE_OVERFLOW         = 0b00100000;
         const SPRITE_ZERO_HIT         = 0b01000000;
-        const VERTICAL_BLANK_STARTED  = 0b10000000;
+        const VBLANK_STARTED          = 0b10000000;
+    }
+}
+
+impl StatusRegister {
+    pub fn new() -> StatusRegister {
+        StatusRegister::from_bits_truncate(0)
+    }
+
+    pub fn read(&self) -> u8 {
+        self.bits
+    }
+
+    pub fn set_sprite_overflow(&mut self, set: bool) {
+        self.set(StatusRegister::SPRITE_OVERFLOW, set)
+    }
+
+    pub fn set_sprite_zero_hit(&mut self, set: bool) {
+        self.set(StatusRegister::SPRITE_ZERO_HIT, set)
+    }
+
+    pub fn set_vblank_started(&mut self, set: bool) {
+        self.set(StatusRegister::VBLANK_STARTED, set)
+    }
+
+    pub fn is_in_vblank(&self) -> bool {
+        self.contains(StatusRegister::VBLANK_STARTED)
     }
 }

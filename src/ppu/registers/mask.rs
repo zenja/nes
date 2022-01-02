@@ -24,3 +24,17 @@ bitflags! {
         const EMPHASIZE_BLUE            = 0b10000000;
     }
 }
+
+impl MaskRegister {
+    pub fn new() -> MaskRegister {
+        MaskRegister::from_bits_truncate(0)
+    }
+
+    pub fn read(&self) -> u8 {
+        self.bits
+    }
+
+    pub fn write(&mut self, value: u8) {
+        self.bits = value;
+    }
+}
