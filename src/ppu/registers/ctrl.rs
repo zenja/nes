@@ -1,5 +1,3 @@
-use core::panic;
-
 use bitflags::bitflags;
 
 bitflags! {
@@ -20,14 +18,14 @@ bitflags! {
    // +--------- Generate an NMI at the start of the
    //            vertical blanking interval (0: off; 1: on)
    pub struct CtrlRegister: u8 {
-       const NAMETABLE1              = 0b00000001;
-       const NAMETABLE2              = 0b00000010;
-       const VRAM_ADDR_INCREMENT     = 0b00000100;
-       const SPRITE_PATTERN_ADDR     = 0b00001000;
-       const BACKROUND_PATTERN_ADDR  = 0b00010000;
-       const SPRITE_SIZE             = 0b00100000;
-       const MASTER_SLAVE_SELECT     = 0b01000000;
-       const GENERATE_NMI            = 0b10000000;
+       const NAMETABLE1               = 0b00000001;
+       const NAMETABLE2               = 0b00000010;
+       const VRAM_ADDR_INCREMENT      = 0b00000100;
+       const SPRITE_PATTERN_ADDR      = 0b00001000;
+       const BACKGROUND_PATTERN_ADDR  = 0b00010000;
+       const SPRITE_SIZE              = 0b00100000;
+       const MASTER_SLAVE_SELECT      = 0b01000000;
+       const GENERATE_NMI             = 0b10000000;
    }
 }
 
