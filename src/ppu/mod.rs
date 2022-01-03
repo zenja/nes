@@ -24,6 +24,13 @@ pub struct PPU {
 
     // internal data buffer
     data_buf: u8,
+
+    // NMI status
+    nmi: bool,
+
+    // temp field for tracking PPU cycles and scanlines
+    scanlines: u32,
+    cycles: u32,
 }
 
 impl PPU {
@@ -39,26 +46,52 @@ impl PPU {
             scroll_reg: ScrollRegister::new(),
             mask_reg: MaskRegister::new(),
             data_buf: 0,
+            nmi: false,
+            scanlines: 0,
+            cycles: 0,
+        }
+    }
+
+    pub fn tick(&mut self) {
+        // TODO handle status register change
+
+        self.cycles += 1;
+        if self.cycles == 341 {
+            self.cycles = 0;
+            self.scanlines += 1;
+
+            if self.scanlines == 241 {
+                self.status_reg.set_vblank_started(true);
+                if self.ctrl_reg.is_generate_nmi() {
+                    self.nmi = true;
+                }
+            }
+
+            if self.scanlines == 262 {
+                self.scanlines = 0;
+                self.status_reg.set_vblank_started(false);
+                self.nmi = false;
+            }
         }
     }
 
     pub fn cpu_read(&mut self, cpu_addr: u16) -> u8 {
         match cpu_addr {
             0x2000..=0x3FFF => match cpu_addr & 0x0007 {
-                // Ctrl register
-                0x0000 => panic!("PPU control register is not readable!"),
-                // Mask register
-                0x0001 => panic!("PPU mask register is not readable!"),
+                // Ctrl register (write-only)
+                0x0000 => 0,
+                // Mask register (write-only)
+                0x0001 => 0,
                 // Status register
                 0x0002 => self.read_status_reg(),
-                // OAM address register
-                0x0003 => panic!("PPU OAM address register is not readable!"),
+                // OAM address register (write-only)
+                0x0003 => 0,
                 // OAM data register
                 0x0004 => 0, // TODO
-                // Scroll register
-                0x0005 => panic!("PPU scroll address register is not readable!"),
-                // PPU address register
-                0x0006 => panic!("PPU address address register is not readable!"),
+                // Scroll register (write-only)
+                0x0005 => 0,
+                // PPU address register (write-only)
+                0x0006 => 0,
                 // PPU data register
                 0x0007 => self.read_data_reg(),
                 _ => panic!("impossible"),
@@ -247,6 +280,14 @@ impl PPU {
 
     pub fn write_scroll_reg(&mut self, value: u8) {
         self.scroll_reg.write(value);
+    }
+
+    pub fn has_nmi(&self) -> bool {
+        self.nmi
+    }
+
+    pub fn reset_nmi(&mut self) {
+        self.nmi = false;
     }
 }
 

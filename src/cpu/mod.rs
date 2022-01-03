@@ -63,16 +63,18 @@ impl CPU {
 
     pub fn run_with_callback<F: FnMut(&mut CPU)>(&mut self, mut callback: F) {
         loop {
+            if self.bus.has_nmi() {
+                self.cycles = self.nmi();
+                self.bus.reset_nmi();
+            }
+
             let should_callback = self.cycles == 0;
             if should_callback {
-                // let pc = self.pc;
-                // let inst = self.peak_next_instruction();
-                // callback(self, pc, &inst);
                 callback(self);
-                self.tick();
-            } else {
-                self.tick();
             }
+
+            self.tick();
+            self.bus.cpu_tick();
         }
     }
 
@@ -734,6 +736,51 @@ impl CPU {
                 self.acc = result_adc;
             }
         }
+    }
+
+    // return: number of cycles of nmi (always 8)
+    fn nmi(&mut self) -> u32 {
+        // write(0x0100 + stkp, (pc >> 8) & 0x00FF);
+        // stkp--;
+        // write(0x0100 + stkp, pc & 0x00FF);
+        // stkp--;
+
+        // SetFlag(B, 0);
+        // SetFlag(U, 1);
+        // SetFlag(I, 1);
+        // write(0x0100 + stkp, status);
+        // stkp--;
+
+        // addr_abs = 0xFFFA;
+        // uint16_t lo = read(addr_abs + 0);
+        // uint16_t hi = read(addr_abs + 1);
+        // pc = (hi << 8) | lo;
+
+        // cycles = 8;
+
+        use self::CPUStatusBit::*;
+
+        self.bus
+            .cpu_write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
+        self.sp -= 1;
+        self.bus
+            .cpu_write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
+        self.sp -= 1;
+
+        self.set_status(B, false);
+        self.set_status(U, true);
+        self.set_status(I, true);
+        self.bus
+            .cpu_write(0x0100 + self.sp as u16, self.status.bits);
+        self.sp -= 1;
+
+        let addr_abs: u16 = 0xFFFA;
+        let lo: u16 = self.bus.cpu_read(addr_abs + 0) as u16;
+        let hi: u16 = self.bus.cpu_read(addr_abs + 1) as u16;
+        self.pc = (hi << 8) | lo;
+
+        // 8 cycles
+        8
     }
 
     fn read(&mut self, addr: u16) -> u8 {

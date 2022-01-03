@@ -52,6 +52,16 @@ impl Bus {
         }
     }
 
+    // tick from CPU
+    pub fn cpu_tick(&mut self) {
+        // TODO more logic
+
+        // tick PPU for 3 times
+        for _ in 0..3 {
+            self.ppu.tick();
+        }
+    }
+
     pub fn cpu_read(&mut self, addr: u16) -> u8 {
         let v = self.cart.cpu_read(addr);
         if v.is_some() {
@@ -87,6 +97,14 @@ impl Bus {
             0x4016 | 0x4017 => (),
             _ => (),
         }
+    }
+
+    pub fn has_nmi(&self) -> bool {
+        self.ppu.has_nmi()
+    }
+
+    pub fn reset_nmi(&mut self) {
+        self.ppu.reset_nmi();
     }
 }
 

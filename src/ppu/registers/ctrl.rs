@@ -55,6 +55,10 @@ impl CtrlRegister {
             1
         }
     }
+
+    pub fn is_generate_nmi(&self) -> bool {
+        self.contains(CtrlRegister::GENERATE_NMI)
+    }
 }
 
 #[cfg(test)]
