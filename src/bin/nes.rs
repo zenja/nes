@@ -1,16 +1,17 @@
+use std::path::PathBuf;
+
+use cpu::CPU;
+use nes::bus::Bus;
+use nes::cartridge::Cartridge;
 use nes::cpu;
 
 fn main() {
-    let asm = r"
-        LDX #$08
-        decrement:
-        DEX
-        STX $0200
-        CPX #$03
-        BNE decrement
-        STX $0201
-        BRK
-    ";
-    let bytes = cpu::assembler::assemble(asm);
-    println!("{:02X?}", bytes);
+    let mut nes_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    nes_path.push("tests/resources/nestest.nes");
+
+    let cart = Cartridge::new_from_file(nes_path).unwrap();
+    let bus = Bus::new(cart);
+    let mut cpu = CPU::new(bus);
+    cpu.reset();
+    cpu.run();
 }
