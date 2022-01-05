@@ -1,7 +1,7 @@
 extern crate nes;
 extern crate sdl2;
 
-use nes::graphics::{NesFrame, NesSDLScreen, Palette, Tile};
+use nes::graphics::{NesFrame, NesSDLScreen};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;

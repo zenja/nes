@@ -23,7 +23,7 @@ fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
 
-    let mut screen = NesSDLScreen::new(&video_subsystem, 4);
+    let mut screen = NesSDLScreen::new(&video_subsystem, 3);
 
     screen.set_draw_color(Color::RGB(255, 255, 255));
     screen.clear();
@@ -31,26 +31,25 @@ fn main() -> Result<(), String> {
 
     let palette = Palette {
         colors: [
-            nes::graphics::SYSTEM_PALLETE[0x01],
-            nes::graphics::SYSTEM_PALLETE[0x23],
-            nes::graphics::SYSTEM_PALLETE[0x27],
-            nes::graphics::SYSTEM_PALLETE[0x30],
+            nes::graphics::SYSTEM_PALETTE[0x01],
+            nes::graphics::SYSTEM_PALETTE[0x23],
+            nes::graphics::SYSTEM_PALETTE[0x27],
+            nes::graphics::SYSTEM_PALETTE[0x30],
         ],
     };
     let mut frame = NesFrame::new();
-    let cart = &cpu.bus.cart;
     // draw for bank 0
-    for i in 0..256 {
+    for i in 0..=255 {
         let tile = cpu.bus.ppu.load_tile(0, i).unwrap();
-        let x = (i % 32) * 8;
-        let y = (i / 32) * 8;
+        let x = (i as u32 % 32) * 8;
+        let y = (i as u32 / 32) * 8;
         frame.draw_tile(false, x, y, &tile, &palette);
     }
     // draw for bank 1
-    for i in 0..256 {
+    for i in 0..=255 {
         let tile = cpu.bus.ppu.load_tile(1, i).unwrap();
-        let x = (i % 32) * 8;
-        let y = 100 + (i / 32) * 8;
+        let x = (i as u32 % 32) * 8;
+        let y = 100 + (i as u32 / 32) * 8;
         frame.draw_tile(false, x, y, &tile, &palette);
     }
 

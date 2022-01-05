@@ -10,7 +10,7 @@ use addr::AddrMode;
 use spec::Spec;
 
 #[allow(dead_code)]
-pub struct CPU {
+pub struct CPU<'a> {
     pub pc: u16,       // Program Counter
     sp: u8,            // Stack Pointer
     acc: u8,           // Accumulator
@@ -21,13 +21,13 @@ pub struct CPU {
     cycles: u32,       // Number of cycles remaining for this instruction
     total_cycles: u32, // Number of total cycles this CPU has executed
 
-    pub bus: Bus,
+    pub bus: Bus<'a>,
 
     // Internal helpers
     opcode_to_spec: HashMap<u8, Spec>,
 }
 
-impl CPU {
+impl CPU<'_> {
     pub fn new(bus: Bus) -> CPU {
         CPU {
             pc: 0x8000,

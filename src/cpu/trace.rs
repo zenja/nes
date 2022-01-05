@@ -1,7 +1,7 @@
 use super::Instruction;
 use super::CPU;
 
-impl CPU {
+impl CPU<'_> {
     pub fn trace(&mut self) -> String {
         let pc = self.pc;
         let inst = self.peak_next_instruction();

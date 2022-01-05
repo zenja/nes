@@ -3,4 +3,4 @@ pub mod cartridge;
 pub mod cpu;
 pub mod graphics;
 mod mapper;
-mod ppu;
+pub mod ppu;

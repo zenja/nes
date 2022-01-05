@@ -57,7 +57,7 @@ impl NesSDLScreen {
     pub fn draw_frame(&mut self, frame: &NesFrame) {
         for (y, row) in frame.pixels.iter().enumerate() {
             for (x, color) in row.iter().enumerate() {
-                self.draw(x as u32, y as u32, color.0, color.1, color.2);
+                self.draw(x as u32, y as u32, color[0], color[1], color[2]);
             }
         }
     }
@@ -82,13 +82,13 @@ impl DerefMut for NesSDLScreen {
 // ----------------------------------------------------------------------------
 
 pub struct NesFrame {
-    pixels: [[(u8, u8, u8); NES_WIDTH as usize]; NES_HEIGHT as usize],
+    pixels: [[[u8; 3]; NES_WIDTH as usize]; NES_HEIGHT as usize],
 }
 
 impl NesFrame {
     pub fn new() -> NesFrame {
         NesFrame {
-            pixels: [[(0u8, 0u8, 0u8); NES_WIDTH as usize]; NES_HEIGHT as usize],
+            pixels: [[[0; 3]; NES_WIDTH as usize]; NES_HEIGHT as usize],
         }
     }
 
@@ -96,7 +96,7 @@ impl NesFrame {
         if x >= NES_WIDTH || y >= NES_HEIGHT {
             return;
         }
-        self.pixels[y as usize][x as usize] = (r, g, b)
+        self.pixels[y as usize][x as usize] = [r, g, b]
     }
 
     pub fn draw_tile(
@@ -157,7 +157,7 @@ impl Tile {
 // ----------------------------------------------------------------------------
 
 #[rustfmt::skip]
-pub static SYSTEM_PALLETE: [(u8, u8, u8); 64] = [
+pub static SYSTEM_PALETTE: [(u8, u8, u8); 64] = [
    (0x80, 0x80, 0x80), (0x00, 0x3D, 0xA6), (0x00, 0x12, 0xB0), (0x44, 0x00, 0x96), (0xA1, 0x00, 0x5E),
    (0xC7, 0x00, 0x28), (0xBA, 0x06, 0x00), (0x8C, 0x17, 0x00), (0x5C, 0x2F, 0x00), (0x10, 0x45, 0x00),
    (0x05, 0x4A, 0x00), (0x00, 0x47, 0x2E), (0x00, 0x41, 0x66), (0x00, 0x00, 0x00), (0x05, 0x05, 0x05),

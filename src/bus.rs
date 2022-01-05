@@ -1,5 +1,5 @@
 use crate::cartridge::Cartridge;
-use crate::ppu;
+use crate::ppu::PPU;
 
 /*
   _______________ $10000  _______________
@@ -35,20 +35,29 @@ use crate::ppu;
 const CPU_RAM_SIZE: usize = 2048;
 
 #[allow(dead_code)]
-pub struct Bus {
+pub struct Bus<'call> {
     pub cpu_ram: [u8; CPU_RAM_SIZE],
     pub cart: Cartridge,
-    pub ppu: ppu::PPU,
+    pub ppu: PPU,
+
+    gameloop_callback: Box<dyn FnMut(&PPU) + 'call>,
 }
 
-impl Bus {
-    #[allow(dead_code)]
-    pub fn new(cart: Cartridge) -> Bus {
-        let ppu = ppu::PPU::new(&cart);
+impl Bus<'_> {
+    pub fn new<'call>(cart: Cartridge) -> Bus<'call> {
+        Bus::new_with_gameloop_callback(cart, move |ppu: &PPU| {})
+    }
+
+    pub fn new_with_gameloop_callback<'call, F>(cart: Cartridge, callback: F) -> Bus<'call>
+    where
+        F: FnMut(&PPU) + 'call,
+    {
+        let ppu = PPU::new(&cart);
         Bus {
             cpu_ram: [0; CPU_RAM_SIZE],
             cart: cart,
             ppu: ppu,
+            gameloop_callback: Box::from(callback),
         }
     }
 
@@ -57,8 +66,14 @@ impl Bus {
         // TODO more logic
 
         // tick PPU for 3 times
+        let nmi_before = self.has_nmi();
         for _ in 0..3 {
             self.ppu.tick();
+        }
+        let nmi_after = self.has_nmi();
+
+        if !nmi_before && nmi_after {
+            (self.gameloop_callback)(&mut self.ppu);
         }
     }
 

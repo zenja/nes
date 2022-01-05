@@ -1,6 +1,7 @@
 pub mod registers;
 
 use crate::cartridge::Mirror;
+use crate::graphics::{self, NesFrame, Palette};
 use crate::{cartridge::Cartridge, graphics::Tile};
 use registers::addr::AddrRegister;
 use registers::ctrl::CtrlRegister;
@@ -123,21 +124,6 @@ impl PPU {
             },
             _ => panic!("CPU write address {:04X?} not supported for PPU!", cpu_addr),
         }
-    }
-
-    pub fn load_tile(&self, bank: u32, tile_idx: u32) -> Result<Tile, String> {
-        if bank != 0 && bank != 1 {
-            return Err(format!("Wrong bank index: {}", bank));
-        }
-
-        // Each CHR Rom bank is 4KB
-        let start = 4096 * bank as usize;
-        let end = 4096 * (bank + 1) as usize;
-        let bank_bytes: &[u8] = &self.chr_rom[start..end];
-
-        let left_bytes = &bank_bytes[(tile_idx * 16) as usize..(tile_idx * 16 + 8) as usize];
-        let right_bytes = &bank_bytes[(tile_idx * 16 + 8) as usize..(tile_idx * 16 + 16) as usize];
-        Ok(Tile::new(left_bytes, right_bytes).unwrap())
     }
 
     pub fn write_addr_reg(&mut self, value: u8) {
@@ -288,6 +274,47 @@ impl PPU {
 
     pub fn reset_nmi(&mut self) {
         self.nmi = false;
+    }
+
+    pub fn render_ppu(&self, frame: &mut NesFrame) {
+        let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
+        for tile_x in 0..32 {
+            for tile_y in 0..30 {
+                let tile_idx = self.vram
+                    [self.get_mirrored_vram_addr(nametable_addr + tile_y * 32 + tile_x) as usize];
+                let tile = self
+                    .load_tile(
+                        self.ctrl_reg.get_background_pattern_table_bank() as u32,
+                        tile_idx,
+                    )
+                    .unwrap();
+                // TODO use real palette
+                let palette = Palette {
+                    colors: [
+                        graphics::SYSTEM_PALETTE[0x01],
+                        graphics::SYSTEM_PALETTE[0x23],
+                        graphics::SYSTEM_PALETTE[0x27],
+                        graphics::SYSTEM_PALETTE[0x30],
+                    ],
+                };
+                frame.draw_tile(false, tile_x as u32 * 8, tile_y as u32 * 8, &tile, &palette);
+            }
+        }
+    }
+
+    pub fn load_tile(&self, bank: u32, tile_idx: u8) -> Result<Tile, String> {
+        if bank != 0 && bank != 1 {
+            return Err(format!("Wrong bank index: {}", bank));
+        }
+
+        // Each CHR Rom bank is 4KB
+        let start = 4096 * bank as usize;
+        let end = 4096 * (bank + 1) as usize;
+        let bank_bytes: &[u8] = &self.chr_rom[start..end];
+
+        let left_bytes = &bank_bytes[(tile_idx as usize * 16)..(tile_idx as usize * 16 + 8)];
+        let right_bytes = &bank_bytes[(tile_idx as usize * 16 + 8)..(tile_idx as usize * 16 + 16)];
+        Ok(Tile::new(left_bytes, right_bytes).unwrap())
     }
 }
 

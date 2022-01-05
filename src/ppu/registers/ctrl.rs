@@ -56,6 +56,14 @@ impl CtrlRegister {
         }
     }
 
+    pub fn get_background_pattern_table_bank(&self) -> u8 {
+        if self.contains(CtrlRegister::BACKGROUND_PATTERN_ADDR) {
+            1
+        } else {
+            0
+        }
+    }
+
     pub fn is_generate_nmi(&self) -> bool {
         self.contains(CtrlRegister::GENERATE_NMI)
     }
