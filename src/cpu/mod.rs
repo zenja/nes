@@ -216,10 +216,10 @@ impl CPU<'_> {
 
         let addr_mode = inst.spec.addr_mode;
         let oprand_addr = inst.oprand_addr;
-        let oprand = self.read(oprand_addr);
 
         match inst.spec.opcode {
             ADC => {
+                let oprand = self.read(oprand_addr);
                 let result: u8 = self
                     .acc
                     .wrapping_add(oprand)
@@ -236,6 +236,7 @@ impl CPU<'_> {
                 self.acc = result;
             }
             SBC => {
+                let oprand = self.read(oprand_addr);
                 let value = (oprand as u16) ^ 0x00FF;
                 let tmp = self.acc as u16 + value + self.get_status(C) as u16;
                 self.set_status(C, tmp & 0xFF00 != 0);
@@ -246,11 +247,13 @@ impl CPU<'_> {
                 self.acc = (tmp & 0x00FF) as u8;
             }
             AND => {
+                let oprand = self.read(oprand_addr);
                 self.acc = self.acc & oprand;
                 self.set_status(Z, self.acc == 0);
                 self.set_status(N, (self.acc & 0x80) != 0);
             }
             ASL => {
+                let oprand = self.read(oprand_addr);
                 let oprand = if let Implicit = addr_mode {
                     self.acc
                 } else {
@@ -283,6 +286,7 @@ impl CPU<'_> {
                 }
             }
             BIT => {
+                let oprand = self.read(oprand_addr);
                 let tmp = oprand & self.acc;
                 self.set_status(Z, tmp == 0);
                 self.set_status(N, oprand & (1 << 7) != 0);
@@ -359,21 +363,25 @@ impl CPU<'_> {
                 self.set_status(V, false);
             }
             CMP => {
+                let oprand = self.read(oprand_addr);
                 let result = self.acc.wrapping_sub(oprand);
                 self.set_status(C, self.acc >= oprand);
                 self.update_status_Z_N(result);
             }
             CPX => {
+                let oprand = self.read(oprand_addr);
                 let result = self.reg_x.wrapping_sub(oprand);
                 self.set_status(C, self.reg_x >= oprand);
                 self.update_status_Z_N(result);
             }
             CPY => {
+                let oprand = self.read(oprand_addr);
                 let result = self.reg_y.wrapping_sub(oprand);
                 self.set_status(C, self.reg_y >= oprand);
                 self.update_status_Z_N(result);
             }
             DEC => {
+                let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_sub(1);
                 self.write(oprand_addr, result);
                 self.update_status_Z_N(result);
@@ -387,11 +395,13 @@ impl CPU<'_> {
                 self.update_status_Z_N(self.reg_y);
             }
             EOR => {
+                let oprand = self.read(oprand_addr);
                 let result = self.acc ^ oprand;
                 self.acc = result;
                 self.update_status_Z_N(result);
             }
             INC => {
+                let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_add(1);
                 self.write(oprand_addr, result);
                 self.update_status_Z_N(result);
@@ -447,14 +457,17 @@ impl CPU<'_> {
                 self.pc = oprand_addr;
             }
             LDA => {
+                let oprand = self.read(oprand_addr);
                 self.acc = oprand;
                 self.update_status_Z_N(oprand);
             }
             LDX => {
+                let oprand = self.read(oprand_addr);
                 self.reg_x = oprand;
                 self.update_status_Z_N(oprand);
             }
             LDY => {
+                let oprand = self.read(oprand_addr);
                 self.reg_y = oprand;
                 self.update_status_Z_N(oprand);
             }
@@ -477,6 +490,7 @@ impl CPU<'_> {
                 // do nothing
             }
             ORA => {
+                let oprand = self.read(oprand_addr);
                 self.acc = self.acc | oprand;
                 self.update_status_Z_N(self.acc);
             }
@@ -607,6 +621,7 @@ impl CPU<'_> {
             // Ref: https://wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes
             LAX => {
                 // LAX is shortcut for LDA value then TAX
+                let oprand = self.read(oprand_addr);
                 self.acc = oprand;
                 self.reg_x = self.acc;
                 self.update_status_Z_N(self.acc);
@@ -618,6 +633,7 @@ impl CPU<'_> {
             }
             DCP => {
                 // Equivalent to DEC value then CMP value
+                let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_sub(1);
                 self.write(oprand_addr, result);
                 self.set_status(C, self.acc >= result);
@@ -625,6 +641,7 @@ impl CPU<'_> {
             }
             ISB => {
                 // Equivalent to INC value then SBC value
+                let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_add(1);
                 self.write(oprand_addr, result);
                 self.update_status_Z_N(result);
@@ -924,7 +941,7 @@ mod test {
     use super::*;
     use crate::cartridge::Cartridge;
 
-    fn new_cpu_with_program(program: Vec<u8>) -> CPU {
+    fn new_cpu_with_program(program: Vec<u8>) -> CPU<'static> {
         let cart = Cartridge::new_from_program(program);
         let bus = Bus::new(cart);
         let mut cpu = CPU::new(bus);
@@ -1053,5 +1070,59 @@ mod test {
 
         status.turn_off(U);
         assert_eq!(status.bits, 0b0000_0001);
+    }
+
+    #[test]
+    fn test_write_and_read_ppu_mem() {
+        // ; PPU 0x2000 <- 0x00
+        // ; PPU 0x2001 <- 0x11
+        // ; PPU 0x2002 <- 0x22
+        // LDA #$20
+        // STA $2006
+        // LDA #$00
+        // STA $2006
+        // LDA #$00
+        // STA $2007
+        // LDA #$11
+        // STA $2007
+        // LDA #$22
+        // STA $2007
+        //
+        // ; read from PPU 0x2000
+        // LDA #$20
+        // STA $2006
+        // LDA #$00
+        // STA $2006
+        // LDA $2007 ; dummy read
+        // LDA $2007 ; will get [0x2000]
+        // LDA $2007 ; will get [0x2001]
+        // LDA $2007 ; will get [0x2002]
+        let mut cpu = new_cpu_with_program(vec![
+            0xa9, 0x20, 0x8d, 0x06, 0x20, 0xa9, 0x00, 0x8d, 0x06, 0x20, 0xa9, 0x00, 0x8d, 0x07,
+            0x20, 0xa9, 0x11, 0x8d, 0x07, 0x20, 0xa9, 0x22, 0x8d, 0x07, 0x20, 0xa9, 0x20, 0x8d,
+            0x06, 0x20, 0xa9, 0x00, 0x8d, 0x06, 0x20, 0xad, 0x07, 0x20, 0xad, 0x07, 0x20, 0xad,
+            0x07, 0x20, 0xad, 0x07, 0x20,
+        ]);
+        // run PPU writes
+        for _ in 0..10 {
+            cpu.execute_next_instruction();
+            println!("executed");
+        }
+        // set PPU address
+        for _ in 0..4 {
+            cpu.execute_next_instruction();
+        }
+        // dummy read
+        cpu.execute_next_instruction();
+        assert_eq!(cpu.acc, 0x00);
+        // read [0x2000]
+        cpu.execute_next_instruction();
+        assert_eq!(cpu.acc, 0x00);
+        // read [0x2001]
+        cpu.execute_next_instruction();
+        assert_eq!(cpu.acc, 0x11);
+        // read [0x2002]
+        cpu.execute_next_instruction();
+        assert_eq!(cpu.acc, 0x22);
     }
 }

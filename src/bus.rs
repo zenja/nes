@@ -45,7 +45,7 @@ pub struct Bus<'call> {
 
 impl Bus<'_> {
     pub fn new<'call>(cart: Cartridge) -> Bus<'call> {
-        Bus::new_with_gameloop_callback(cart, move |ppu: &PPU| {})
+        Bus::new_with_gameloop_callback(cart, move |_ppu: &PPU| {})
     }
 
     pub fn new_with_gameloop_callback<'call, F>(cart: Cartridge, callback: F) -> Bus<'call>

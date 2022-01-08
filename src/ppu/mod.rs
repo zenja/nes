@@ -278,8 +278,8 @@ impl PPU {
 
     pub fn render_ppu(&self, frame: &mut NesFrame) {
         let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
-        for tile_x in 0..32 {
-            for tile_y in 0..30 {
+        for tile_y in 0..30 {
+            for tile_x in 0..32 {
                 let tile_idx = self.vram
                     [self.get_mirrored_vram_addr(nametable_addr + tile_y * 32 + tile_x) as usize];
                 let tile = self
@@ -316,6 +316,20 @@ impl PPU {
         let right_bytes = &bank_bytes[(tile_idx as usize * 16 + 8)..(tile_idx as usize * 16 + 16)];
         Ok(Tile::new(left_bytes, right_bytes).unwrap())
     }
+
+    pub fn debug(&self) {
+        println!("----------");
+        let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
+        for tile_y in 0..30 {
+            for tile_x in 0..32 {
+                let vram_idx =
+                    self.get_mirrored_vram_addr(nametable_addr + tile_y * 32 + tile_x) as usize;
+                let tile_idx = self.vram[vram_idx];
+                print!("{:2X?} ", tile_idx);
+            }
+            println!();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -334,14 +348,14 @@ mod test {
         ppu.write_addr_reg(0x05);
         ppu.write_data_reg(0x66);
 
-        assert_eq!(ppu.vram[0x0305], 0x66);
+        assert_eq!(ppu.vram[ppu.get_mirrored_vram_addr(0x2305) as usize], 0x66);
     }
 
     #[test]
     fn test_read_vram() {
         let mut ppu = new_ppu();
         ppu.write_ctrl_reg(0);
-        ppu.vram[0x0305] = 0x66;
+        ppu.vram[ppu.get_mirrored_vram_addr(0x2305) as usize] = 0x66;
 
         ppu.write_addr_reg(0x23);
         ppu.write_addr_reg(0x05);
@@ -349,6 +363,27 @@ mod test {
         ppu.read_data_reg(); // load_into_buffer
         assert_eq!(ppu.addr_reg.get(), 0x2306);
         assert_eq!(ppu.read_data_reg(), 0x66);
+    }
+
+    #[test]
+    fn test_write_then_read_vram() {
+        let mut ppu = new_ppu();
+        ppu.write_addr_reg(0x20);
+        ppu.write_addr_reg(0x00);
+        // 0x2000 => 0x00
+        ppu.write_data_reg(0x00);
+        // 0x2001 => 0x01
+        ppu.write_data_reg(0x01);
+        // 0x2002 => 0x02
+        ppu.write_data_reg(0x02);
+
+        ppu.write_addr_reg(0x20);
+        ppu.write_addr_reg(0x00);
+        ppu.read_data_reg();
+        assert_eq!(ppu.read_data_reg(), 0x00);
+        assert_eq!(ppu.read_data_reg(), 0x01);
+        assert_eq!(ppu.read_data_reg(), 0x02);
+        assert_eq!(ppu.read_data_reg(), 0x00);
     }
 
     #[test]
@@ -452,5 +487,16 @@ mod test {
         ppu.read_data_reg(); // load into_buffer
         assert_eq!(ppu.read_data_reg(), 0x66);
         // assert_eq!(ppu.addr.read(), 0x0306)
+    }
+
+    #[test]
+    fn test_read_status_resets_vblank() {
+        let mut ppu = new_ppu();
+        ppu.status_reg.set_vblank_started(true);
+
+        let status = ppu.read_status_reg();
+
+        assert_eq!(status >> 7, 1);
+        assert_eq!(ppu.status_reg.read() >> 7, 0);
     }
 }

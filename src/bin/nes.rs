@@ -18,7 +18,7 @@ fn main() -> Result<(), String> {
     let mut event_pump = sdl_context.event_pump()?;
 
     let mut nes_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    nes_path.push("tests/resources/pacman.nes");
+    nes_path.push("tests/resources/donkey-kong.nes");
     let cart = Cartridge::new_from_file(nes_path).unwrap();
     let bus = Bus::new_with_gameloop_callback(cart, move |ppu: &PPU| {
         ppu.render_ppu(&mut frame);
@@ -33,6 +33,10 @@ fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => std::process::exit(0),
+                Event::KeyDown {
+                    keycode: Some(Keycode::D),
+                    ..
+                } => ppu.debug(),
                 _ => {}
             }
         }
