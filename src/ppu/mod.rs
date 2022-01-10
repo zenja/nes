@@ -155,6 +155,9 @@ impl PPU {
             }
             // reading from palette table is instant - internal buffer is not involved
             0x3F00..=0x3FFF => {
+                // Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
+                // Addresses $3F04/$3F08/$3F0C can contain unique data,
+                // though these values are not used by the PPU when normally rendering
                 let mut mirrored = addr & 0b0000_0000_0001_1111;
                 if mirrored == 0x0010 {
                     mirrored = 0x0000;
@@ -194,7 +197,7 @@ impl PPU {
                 let mirrored = addr & 0b0000_1111_1111_1111;
                 self.vram[self.get_mirrored_vram_addr(mirrored) as usize] = value;
             }
-            // reading from palette table is instant - internal buffer is not involved
+            // palette table
             0x3F00..=0x3FFF => {
                 let mut mirrored = addr & 0b0000_0000_0001_1111;
                 if mirrored == 0x0010 {
@@ -284,25 +287,17 @@ impl PPU {
                     [self.get_mirrored_vram_addr(nametable_addr + tile_y * 32 + tile_x) as usize];
                 let tile = self
                     .load_tile(
-                        self.ctrl_reg.get_background_pattern_table_bank() as u32,
+                        self.ctrl_reg.get_background_pattern_table_bank() as u8,
                         tile_idx,
                     )
                     .unwrap();
-                // TODO use real palette
-                let palette = Palette {
-                    colors: [
-                        graphics::SYSTEM_PALETTE[0x01],
-                        graphics::SYSTEM_PALETTE[0x23],
-                        graphics::SYSTEM_PALETTE[0x27],
-                        graphics::SYSTEM_PALETTE[0x30],
-                    ],
-                };
+                let palette = self.load_bg_palette(tile_x as u8, tile_y as u8);
                 frame.draw_tile(false, tile_x as u32 * 8, tile_y as u32 * 8, &tile, &palette);
             }
         }
     }
 
-    pub fn load_tile(&self, bank: u32, tile_idx: u8) -> Result<Tile, String> {
+    pub fn load_tile(&self, bank: u8, tile_idx: u8) -> Result<Tile, String> {
         if bank != 0 && bank != 1 {
             return Err(format!("Wrong bank index: {}", bank));
         }
@@ -315,6 +310,34 @@ impl PPU {
         let left_bytes = &bank_bytes[(tile_idx as usize * 16)..(tile_idx as usize * 16 + 8)];
         let right_bytes = &bank_bytes[(tile_idx as usize * 16 + 8)..(tile_idx as usize * 16 + 16)];
         Ok(Tile::new(left_bytes, right_bytes).unwrap())
+    }
+
+    fn load_bg_palette(&self, tile_x: u8, tile_y: u8) -> Palette {
+        let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
+        let attr_table_addr = nametable_addr + 960;
+        let block_x = tile_x / 4;
+        let block_y = tile_y / 4;
+        // the attribute table record for this block
+        let block_attr = self.vram[self
+            .get_mirrored_vram_addr(attr_table_addr + block_y as u16 * 8 + block_x as u16)
+            as usize];
+        // index of which palette (out of 4 possible palettes)
+        let logical_palette_idx: u8 = match ((tile_x % 4) / 2, (tile_y % 4) / 2) {
+            (0, 0) => (block_attr & 0b00_00_00_11) >> 0,
+            (1, 0) => (block_attr & 0b00_00_11_00) >> 2,
+            (0, 1) => (block_attr & 0b00_11_00_00) >> 4,
+            (1, 1) => (block_attr & 0b11_00_00_00) >> 6,
+            (_, _) => panic!("impossible!"),
+        };
+        let palette_arr_start = 1 + logical_palette_idx as usize * 4;
+        Palette {
+            colors: [
+                graphics::SYSTEM_PALETTE[self.palette_table[0] as usize],
+                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start] as usize],
+                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 1] as usize],
+                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
+            ],
+        }
     }
 }
 

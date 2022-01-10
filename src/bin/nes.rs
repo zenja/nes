@@ -20,7 +20,7 @@ fn main() -> Result<(), String> {
     let mut event_pump = sdl_context.event_pump()?;
 
     let mut nes_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    nes_path.push("tests/resources/nestest.nes");
+    nes_path.push("tests/resources/color-test.nes");
     let cart = Cartridge::new_from_file(nes_path).unwrap();
     let bus = Bus::new_with_gameloop_callback(cart, move |ppu: &PPU, joypads: &mut [Joypad; 2]| {
         ppu.render_ppu(&mut frame);

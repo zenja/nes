@@ -327,15 +327,15 @@ impl CPU<'_> {
                 self.set_status(I, true);
                 self.bus
                     .cpu_write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
                 self.bus
                     .cpu_write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
 
                 self.set_status(B, true);
                 self.bus
                     .cpu_write(0x0100 + self.sp as u16, self.status.bits);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
                 self.set_status(B, false);
 
                 self.pc = (self.read(0xFFFE) as u16) | ((self.read(0xFFFF) as u16) << 8);
@@ -449,10 +449,10 @@ impl CPU<'_> {
 
                 self.bus
                     .cpu_write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
                 self.bus
                     .cpu_write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
 
                 self.pc = oprand_addr;
             }
@@ -779,17 +779,17 @@ impl CPU<'_> {
 
         self.bus
             .cpu_write(0x0100 + self.sp as u16, ((self.pc >> 8) & 0x00FF) as u8);
-        self.sp -= 1;
+        self.sp = self.sp.wrapping_sub(1);
         self.bus
             .cpu_write(0x0100 + self.sp as u16, (self.pc & 0x00FF) as u8);
-        self.sp -= 1;
+        self.sp = self.sp.wrapping_sub(1);
 
         self.set_status(B, false);
         self.set_status(U, true);
         self.set_status(I, true);
         self.bus
             .cpu_write(0x0100 + self.sp as u16, self.status.bits);
-        self.sp -= 1;
+        self.sp = self.sp.wrapping_sub(1);
 
         let addr_abs: u16 = 0xFFFA;
         let lo: u16 = self.bus.cpu_read(addr_abs + 0) as u16;
