@@ -1,4 +1,5 @@
 use crate::cartridge::Cartridge;
+use crate::joypad::Joypad;
 use crate::ppu::PPU;
 
 /*
@@ -39,24 +40,26 @@ pub struct Bus<'call> {
     pub cpu_ram: [u8; CPU_RAM_SIZE],
     pub cart: Cartridge,
     pub ppu: PPU,
+    pub joypads: [Joypad; 2],
 
-    gameloop_callback: Box<dyn FnMut(&PPU) + 'call>,
+    gameloop_callback: Box<dyn FnMut(&PPU, &mut [Joypad; 2]) + 'call>,
 }
 
 impl Bus<'_> {
     pub fn new<'call>(cart: Cartridge) -> Bus<'call> {
-        Bus::new_with_gameloop_callback(cart, move |_ppu: &PPU| {})
+        Bus::new_with_gameloop_callback(cart, move |_ppu: &PPU, _joypads: &mut [Joypad; 2]| {})
     }
 
     pub fn new_with_gameloop_callback<'call, F>(cart: Cartridge, callback: F) -> Bus<'call>
     where
-        F: FnMut(&PPU) + 'call,
+        F: FnMut(&PPU, &mut [Joypad; 2]) + 'call,
     {
         let ppu = PPU::new(&cart);
         Bus {
             cpu_ram: [0; CPU_RAM_SIZE],
             cart: cart,
             ppu: ppu,
+            joypads: [Joypad::new(), Joypad::new()],
             gameloop_callback: Box::from(callback),
         }
     }
@@ -73,7 +76,7 @@ impl Bus<'_> {
         let nmi_after = self.has_nmi();
 
         if !nmi_before && nmi_after {
-            (self.gameloop_callback)(&mut self.ppu);
+            (self.gameloop_callback)(&self.ppu, &mut self.joypads);
         }
     }
 
@@ -89,8 +92,9 @@ impl Bus<'_> {
             0x2000..=0x3FFF => self.ppu.cpu_read(addr),
             // TODO APU
             0x4000..=0x4015 => 0,
-            // TODO controller register
-            0x4016 | 0x4017 => 0,
+            // controller register
+            0x4016 => self.joypads[0].read(),
+            0x4017 => self.joypads[1].read(),
             _ => 0,
         }
     }
@@ -108,8 +112,9 @@ impl Bus<'_> {
             0x4014 => (),
             // TODO APU
             0x4000..=0x4013 | 0x4015 => (),
-            // TODO controller register
-            0x4016 | 0x4017 => (),
+            // controller register
+            0x4016 => self.joypads[0].write(value),
+            0x4017 => self.joypads[1].write(value),
             _ => (),
         }
     }

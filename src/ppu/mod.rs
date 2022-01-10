@@ -316,20 +316,6 @@ impl PPU {
         let right_bytes = &bank_bytes[(tile_idx as usize * 16 + 8)..(tile_idx as usize * 16 + 16)];
         Ok(Tile::new(left_bytes, right_bytes).unwrap())
     }
-
-    pub fn debug(&self) {
-        println!("----------");
-        let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
-        for tile_y in 0..30 {
-            for tile_x in 0..32 {
-                let vram_idx =
-                    self.get_mirrored_vram_addr(nametable_addr + tile_y * 32 + tile_x) as usize;
-                let tile_idx = self.vram[vram_idx];
-                print!("{:2X?} ", tile_idx);
-            }
-            println!();
-        }
-    }
 }
 
 #[cfg(test)]
