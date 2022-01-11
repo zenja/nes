@@ -171,8 +171,11 @@ impl PPU {
                 if mirrored == 0x001C {
                     mirrored = 0x000C;
                 }
-                // TODO consider gray scale specified in mask register
-                self.palette_table[mirrored as usize]
+                if self.mask_reg.grayscale() {
+                    self.palette_table[mirrored as usize] & 0x30
+                } else {
+                    self.palette_table[mirrored as usize] & 0x3F
+                }
             }
             _ => panic!(
                 "reading PPU memory at address {:#06x} is not supported",

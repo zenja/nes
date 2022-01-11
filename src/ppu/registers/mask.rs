@@ -37,4 +37,8 @@ impl MaskRegister {
     pub fn write(&mut self, value: u8) {
         self.bits = value;
     }
+
+    pub fn grayscale(&self) -> bool {
+        self.contains(MaskRegister::GREYSCALE)
+    }
 }
