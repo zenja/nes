@@ -23,6 +23,10 @@ pub struct PPU {
     scroll_reg: ScrollRegister,
     mask_reg: MaskRegister,
 
+    // OAM
+    oam_data: [u8; 256],
+    oam_addr: u8,
+
     // internal data buffer
     data_buf: u8,
 
@@ -46,6 +50,8 @@ impl PPU {
             status_reg: StatusRegister::new(),
             scroll_reg: ScrollRegister::new(),
             mask_reg: MaskRegister::new(),
+            oam_data: [0; 256],
+            oam_addr: 0,
             data_buf: 0,
             nmi: false,
             scanlines: 0,
@@ -88,7 +94,7 @@ impl PPU {
                 // OAM address register (write-only)
                 0x0003 => 0,
                 // OAM data register
-                0x0004 => 0, // TODO
+                0x0004 => self.read_oam_data(),
                 // Scroll register (write-only)
                 0x0005 => 0,
                 // PPU address register (write-only)
@@ -111,9 +117,9 @@ impl PPU {
                 // Status register
                 0x0002 => panic!("PPU status register is not writable!"),
                 // OAM address register
-                0x0003 => (), // TODO
+                0x0003 => self.write_oam_addr(value),
                 // OAM data register
-                0x0004 => (), // TODO
+                0x0004 => self.write_oam_data(value),
                 // Scroll register
                 0x0005 => self.write_scroll_reg(value),
                 // PPU address register
@@ -272,6 +278,19 @@ impl PPU {
 
     pub fn write_scroll_reg(&mut self, value: u8) {
         self.scroll_reg.write(value);
+    }
+
+    pub fn write_oam_addr(&mut self, value: u8) {
+        self.oam_addr = value;
+    }
+
+    pub fn read_oam_data(&self) -> u8 {
+        self.oam_data[self.oam_addr as usize]
+    }
+
+    pub fn write_oam_data(&mut self, value: u8) {
+        self.oam_data[self.oam_addr as usize] = value;
+        self.oam_addr += 1;
     }
 
     pub fn has_nmi(&self) -> bool {
