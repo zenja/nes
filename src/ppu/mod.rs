@@ -310,9 +310,9 @@ impl PPU {
         let end = 4096 * (bank + 1) as usize;
         let bank_bytes: &[u8] = &self.chr_rom[start..end];
 
-        let left_bytes = &bank_bytes[(tile_idx as usize * 16)..(tile_idx as usize * 16 + 8)];
-        let right_bytes = &bank_bytes[(tile_idx as usize * 16 + 8)..(tile_idx as usize * 16 + 16)];
-        Ok(Tile::new(left_bytes, right_bytes).unwrap())
+        let low_bytes = &bank_bytes[(tile_idx as usize * 16)..(tile_idx as usize * 16 + 8)];
+        let high_bytes = &bank_bytes[(tile_idx as usize * 16 + 8)..(tile_idx as usize * 16 + 16)];
+        Ok(Tile::new(low_bytes, high_bytes).unwrap())
     }
 
     fn load_bg_palette(&self, tile_x: u8, tile_y: u8) -> Palette {

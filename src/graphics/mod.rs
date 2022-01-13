@@ -131,21 +131,21 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn new(left_bytes: &[u8], right_bytes: &[u8]) -> Result<Tile, String> {
-        if left_bytes.len() != 8 || right_bytes.len() != 8 {
+    pub fn new(low_bytes: &[u8], high_bytes: &[u8]) -> Result<Tile, String> {
+        if low_bytes.len() != 8 || high_bytes.len() != 8 {
             return Err(format!(
-                "Length of left bytes and right bytes of a tile should be both 8 but are {} and {}",
-                left_bytes.len(),
-                right_bytes.len()
+                "Length of low bytes and high bytes of a tile should be both 8 but are {} and {}",
+                low_bytes.len(),
+                high_bytes.len()
             ));
         }
 
         let mut rows = [[0; 8]; 8];
         for i in 0..8 {
             for j in 0..8 {
-                let left_bit = (left_bytes[i] >> j) & 1;
-                let right_bit = (right_bytes[i] >> j) & 1;
-                rows[i][7 - j] = (right_bit << 1) + left_bit;
+                let low_bit = (low_bytes[i] >> j) & 1;
+                let high_bit = (high_bytes[i] >> j) & 1;
+                rows[i][7 - j] = (high_bit << 1) + low_bit;
             }
         }
         Ok(Tile { rows: rows })
