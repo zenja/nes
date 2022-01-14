@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cpu::CPU;
 use nes::bus::Bus;
@@ -62,8 +62,6 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
         }
-
-        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 1789773u32));
     });
     let mut cpu = CPU::new(bus);
     cpu.reset();
