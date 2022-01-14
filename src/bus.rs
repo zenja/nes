@@ -64,20 +64,8 @@ impl Bus<'_> {
         }
     }
 
-    // tick from CPU
-    pub fn cpu_tick(&mut self) {
-        // TODO more logic
-
-        // tick PPU for 3 times
-        let nmi_before = self.has_nmi();
-        for _ in 0..3 {
-            self.ppu.tick();
-        }
-        let nmi_after = self.has_nmi();
-
-        if !nmi_before && nmi_after {
-            (self.gameloop_callback)(&self.ppu, &mut self.joypads);
-        }
+    pub fn run_gameloop_callback(&mut self) {
+        (self.gameloop_callback)(&self.ppu, &mut self.joypads);
     }
 
     pub fn cpu_read(&mut self, addr: u16) -> u8 {

@@ -22,6 +22,7 @@ pub struct CPU<'a> {
     total_cycles: u32, // Number of total cycles this CPU has executed
 
     pub bus: Bus<'a>,
+    total_bus_cycles: u32,
 
     // Internal helpers
     opcode_to_spec: HashMap<u8, Spec>,
@@ -39,6 +40,7 @@ impl CPU<'_> {
             cycles: 0,
             total_cycles: 0,
             bus: bus,
+            total_bus_cycles: 0,
             opcode_to_spec: spec::opcode_to_spec(),
         }
     }
@@ -62,20 +64,48 @@ impl CPU<'_> {
     }
 
     pub fn run_with_callback<F: FnMut(&mut CPU)>(&mut self, mut callback: F) {
+        let mut total_cpu_cycles_when_callback = u32::MAX;
         loop {
-            if self.bus.has_nmi() {
-                self.cycles = self.nmi();
-                self.bus.reset_nmi();
-            }
-
             let should_callback = self.cycles == 0;
-            if should_callback {
+            if should_callback && total_cpu_cycles_when_callback != self.total_cycles {
                 callback(self);
+                total_cpu_cycles_when_callback = self.total_cycles;
             }
 
-            self.tick();
-            self.bus.cpu_tick();
+            self.bus_tick();
         }
+    }
+
+    fn bus_tick(&mut self) {
+        let nmi_before = self.bus.has_nmi();
+        self.bus.ppu.tick();
+        let nmi_after = self.bus.has_nmi();
+
+        if self.total_bus_cycles % 3 == 0 {
+            self.cpu_tick();
+        }
+
+        if !nmi_before && nmi_after {
+            self.bus.run_gameloop_callback();
+        }
+
+        self.total_bus_cycles = self.total_bus_cycles.wrapping_add(1);
+    }
+
+    // one cycle of cpu execution
+    fn cpu_tick(&mut self) {
+        if self.bus.has_nmi() {
+            self.cycles = self.nmi();
+            self.bus.reset_nmi();
+        }
+
+        // if cycle is 0, it means a new instruction can be executed
+        if self.cycles == 0 {
+            self.execute_next_instruction();
+        }
+
+        self.cycles -= 1;
+        self.total_cycles = self.total_cycles.wrapping_add(1);
     }
 
     fn execute_next_instruction(&mut self) {
@@ -88,17 +118,6 @@ impl CPU<'_> {
 
         // Always set the unused status flag bit to 1
         self.set_status(self::CPUStatusBit::U, true);
-    }
-
-    // one cycle of execution
-    fn tick(&mut self) {
-        // if cycle is 0, it means a new instruction can be executed
-        if self.cycles == 0 {
-            self.execute_next_instruction();
-        }
-
-        self.cycles -= 1;
-        self.total_cycles += 1;
     }
 
     fn fetch_next_instruction(&mut self) -> Instruction {
