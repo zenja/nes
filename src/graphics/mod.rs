@@ -150,6 +150,26 @@ impl Tile {
         }
         Ok(Tile { rows: rows })
     }
+
+    pub fn flip_vertical(&mut self) {
+        for y in 0..4 {
+            for x in 0..8 {
+                let tmp = self.rows[y][x];
+                self.rows[y][x] = self.rows[7 - y][x];
+                self.rows[7 - y][x] = tmp;
+            }
+        }
+    }
+
+    pub fn flip_horizontal(&mut self) {
+        for x in 0..4 {
+            for y in 0..8 {
+                let tmp = self.rows[y][x];
+                self.rows[y][x] = self.rows[y][7 - x];
+                self.rows[y][7 - x] = tmp;
+            }
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

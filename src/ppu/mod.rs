@@ -302,6 +302,11 @@ impl PPU {
     }
 
     pub fn render_ppu(&self, frame: &mut NesFrame) {
+        self.render_background(frame);
+        self.render_sprites(frame);
+    }
+
+    pub fn render_background(&self, frame: &mut NesFrame) {
         let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
         for tile_y in 0..30 {
             for tile_x in 0..32 {
@@ -316,6 +321,36 @@ impl PPU {
                 let palette = self.load_bg_palette(tile_x as u8, tile_y as u8);
                 frame.draw_tile(false, tile_x as u32 * 8, tile_y as u32 * 8, &tile, &palette);
             }
+        }
+    }
+
+    pub fn render_sprites(&self, frame: &mut NesFrame) {
+        for sid in (0..self.oam_data.len()).step_by(4) {
+            // raw sprite info
+            let sprite_y = self.oam_data[sid];
+            let tile_idx = self.oam_data[sid + 1];
+            let attr = self.oam_data[sid + 2];
+            let sprite_x = self.oam_data[sid + 3];
+
+            // detailed attributes
+            let flip_vertical: bool = attr >> 7 == 1;
+            let flip_horizontal: bool = attr >> 6 == 1;
+            let palette_idx: u8 = attr & 0b11; // 0/1/2/3
+
+            let palette = self.load_sprite_palette(palette_idx);
+            let mut tile = self
+                .load_tile(
+                    self.ctrl_reg.get_sprite_pattern_table_bank() as u8,
+                    tile_idx,
+                )
+                .unwrap();
+            if flip_vertical {
+                tile.flip_vertical();
+            }
+            if flip_horizontal {
+                tile.flip_horizontal();
+            }
+            frame.draw_tile(true, sprite_x as u32, sprite_y as u32, &tile, &palette);
         }
     }
 
@@ -352,6 +387,18 @@ impl PPU {
             (_, _) => panic!("impossible!"),
         };
         let palette_arr_start = 1 + logical_palette_idx as usize * 4;
+        Palette {
+            colors: [
+                graphics::SYSTEM_PALETTE[self.palette_table[0] as usize],
+                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start] as usize],
+                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 1] as usize],
+                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
+            ],
+        }
+    }
+
+    fn load_sprite_palette(&self, palette_idx: u8) -> Palette {
+        let palette_arr_start: usize = 16 + 1 + palette_idx as usize * 4;
         Palette {
             colors: [
                 graphics::SYSTEM_PALETTE[self.palette_table[0] as usize],
