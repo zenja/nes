@@ -22,7 +22,6 @@ pub struct CPU<'a> {
     total_cycles: u32, // Number of total cycles this CPU has executed
 
     pub bus: Bus<'a>,
-    total_bus_cycles: u32,
 
     // Internal helpers
     opcode_to_spec: HashMap<u8, Spec>,
@@ -40,7 +39,6 @@ impl CPU<'_> {
             cycles: 0,
             total_cycles: 0,
             bus: bus,
-            total_bus_cycles: 0,
             opcode_to_spec: spec::opcode_to_spec(),
         }
     }
@@ -72,28 +70,26 @@ impl CPU<'_> {
                 total_cpu_cycles_when_callback = self.total_cycles;
             }
 
-            self.bus_tick();
+            self.sys_tick();
         }
     }
 
-    fn bus_tick(&mut self) {
+    fn sys_tick(&mut self) {
         let nmi_before = self.bus.has_nmi();
         self.bus.ppu.tick();
         let nmi_after = self.bus.has_nmi();
 
-        if self.total_bus_cycles % 3 == 0 {
-            self.cpu_tick();
+        if self.bus.system_tick() {
+            self.tick();
         }
 
         if !nmi_before && nmi_after {
             self.bus.run_gameloop_callback();
         }
-
-        self.total_bus_cycles = self.total_bus_cycles.wrapping_add(1);
     }
 
     // one cycle of cpu execution
-    fn cpu_tick(&mut self) {
+    fn tick(&mut self) {
         if self.bus.has_nmi() {
             self.cycles = self.nmi();
             self.bus.reset_nmi();

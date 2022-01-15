@@ -24,7 +24,7 @@ pub struct PPU {
     mask_reg: MaskRegister,
 
     // OAM
-    oam_data: [u8; 256],
+    pub oam_data: [u8; 256],
     oam_addr: u8,
 
     // internal data buffer
