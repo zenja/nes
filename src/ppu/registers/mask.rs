@@ -41,4 +41,12 @@ impl MaskRegister {
     pub fn grayscale(&self) -> bool {
         self.contains(MaskRegister::GREYSCALE)
     }
+
+    pub fn show_background(&self) -> bool {
+        self.contains(MaskRegister::SHOW_BACKGROUND)
+    }
+
+    pub fn show_sprites(&self) -> bool {
+        self.contains(MaskRegister::SHOW_SPRITES)
+    }
 }

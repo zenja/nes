@@ -60,15 +60,19 @@ impl PPU {
     }
 
     pub fn tick(&mut self) {
-        // TODO handle status register change
-
         self.cycles += 1;
         if self.cycles == 341 {
+            if self.is_sprite_zero_hit() {
+                self.status_reg.set_sprite_zero_hit(true);
+            }
+
             self.cycles = 0;
             self.scanlines += 1;
 
             if self.scanlines == 241 {
                 self.status_reg.set_vblank_started(true);
+                // the sprite zero hit flag should be erased upon entering VBLANK state
+                self.status_reg.set_sprite_zero_hit(false);
                 if self.ctrl_reg.is_generate_nmi() {
                     self.nmi = true;
                 }
@@ -77,6 +81,7 @@ impl PPU {
             if self.scanlines == 262 {
                 self.scanlines = 0;
                 self.status_reg.set_vblank_started(false);
+                self.status_reg.set_sprite_zero_hit(false);
                 self.nmi = false;
             }
         }
@@ -407,6 +412,15 @@ impl PPU {
                 graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
             ],
         }
+    }
+
+    fn is_sprite_zero_hit(&self) -> bool {
+        let y = self.oam_data[0];
+        let x = self.oam_data[3];
+        (y as u32 == self.scanlines)
+            && (x as u32 <= self.cycles)
+            && self.mask_reg.show_background()
+            && self.mask_reg.show_sprites()
     }
 
     pub fn print_debug_info(&self) {
