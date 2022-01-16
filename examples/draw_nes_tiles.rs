@@ -7,7 +7,8 @@ use std::time::Duration;
 use nes::bus::Bus;
 use nes::cartridge::Cartridge;
 use nes::cpu::CPU;
-use nes::graphics::{NesFrame, NesSDLScreen, Palette};
+use nes::graphics::{NesFrame, NesSDLScreen};
+use nes::ppu::{Palette, Rect, SYSTEM_PALETTE};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -31,10 +32,10 @@ fn main() -> Result<(), String> {
 
     let palette = Palette {
         colors: [
-            nes::graphics::SYSTEM_PALETTE[0x01],
-            nes::graphics::SYSTEM_PALETTE[0x23],
-            nes::graphics::SYSTEM_PALETTE[0x27],
-            nes::graphics::SYSTEM_PALETTE[0x30],
+            SYSTEM_PALETTE[0x01],
+            SYSTEM_PALETTE[0x23],
+            SYSTEM_PALETTE[0x27],
+            SYSTEM_PALETTE[0x30],
         ],
     };
     let mut frame = NesFrame::new();
@@ -43,14 +44,34 @@ fn main() -> Result<(), String> {
         let tile = cpu.bus.ppu.load_tile(0, i).unwrap();
         let x = (i as u32 % 32) * 8;
         let y = (i as u32 / 32) * 8;
-        frame.draw_tile(false, x, y, &tile, &palette);
+        cpu.bus.ppu.render_tile(
+            &mut frame,
+            false,
+            x,
+            y,
+            &tile,
+            &palette,
+            &Rect::new(0, 0, 256, 240),
+            0,
+            0,
+        )
     }
     // draw for bank 1
     for i in 0..=255 {
         let tile = cpu.bus.ppu.load_tile(1, i).unwrap();
         let x = (i as u32 % 32) * 8;
         let y = 100 + (i as u32 / 32) * 8;
-        frame.draw_tile(false, x, y, &tile, &palette);
+        cpu.bus.ppu.render_tile(
+            &mut frame,
+            false,
+            x,
+            y,
+            &tile,
+            &palette,
+            &Rect::new(0, 0, 256, 240),
+            0,
+            0,
+        )
     }
 
     let mut event_pump = sdl_context.event_pump()?;

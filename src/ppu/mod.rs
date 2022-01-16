@@ -1,8 +1,8 @@
 pub mod registers;
 
+use crate::cartridge::Cartridge;
 use crate::cartridge::Mirror;
-use crate::graphics::{self, NesFrame, Palette};
-use crate::{cartridge::Cartridge, graphics::Tile};
+use crate::graphics::NesFrame;
 use registers::addr::AddrRegister;
 use registers::ctrl::CtrlRegister;
 
@@ -312,7 +312,58 @@ impl PPU {
     }
 
     pub fn render_background(&self, frame: &mut NesFrame) {
-        let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
+        let scroll_x = (self.scroll_reg.scroll_x) as usize;
+        let scroll_y = (self.scroll_reg.scroll_y) as usize;
+
+        let (main_nametable_addr, second_nametable_addr) =
+            match (&self.mirror, self.ctrl_reg.get_base_nametable_addr()) {
+                (Mirror::Vertical, 0x2000)
+                | (Mirror::Vertical, 0x2800)
+                | (Mirror::Horizontal, 0x2000)
+                | (Mirror::Horizontal, 0x2400) => (0x0000u16, 0x0400u16),
+                (Mirror::Vertical, 0x2400)
+                | (Mirror::Vertical, 0x2C00)
+                | (Mirror::Horizontal, 0x2800)
+                | (Mirror::Horizontal, 0x2C00) => (0x0400u16, 0x0000u16),
+                (_, _) => {
+                    panic!("Not supported mirroring type {:?}", self.mirror);
+                }
+            };
+
+        self.render_nametable(
+            frame,
+            main_nametable_addr,
+            &Rect::new(scroll_x, scroll_y, 256, 240),
+            -(scroll_x as i32),
+            -(scroll_y as i32),
+        );
+        if scroll_x > 0 {
+            self.render_nametable(
+                frame,
+                second_nametable_addr,
+                &Rect::new(0, 0, scroll_x, 240),
+                (256 - scroll_x) as i32,
+                0,
+            );
+        } else if scroll_y > 0 {
+            self.render_nametable(
+                frame,
+                second_nametable_addr,
+                &Rect::new(0, 0, 256, scroll_y),
+                0,
+                (240 - scroll_y) as i32,
+            );
+        }
+    }
+
+    fn render_nametable(
+        &self,
+        frame: &mut NesFrame,
+        nametable_addr: u16,
+        viewport: &Rect,
+        shift_x: i32,
+        shift_y: i32,
+    ) {
         for tile_y in 0..30 {
             for tile_x in 0..32 {
                 let tile_idx = self.vram
@@ -323,8 +374,54 @@ impl PPU {
                         tile_idx,
                     )
                     .unwrap();
-                let palette = self.load_bg_palette(tile_x as u8, tile_y as u8);
-                frame.draw_tile(false, tile_x as u32 * 8, tile_y as u32 * 8, &tile, &palette);
+                let palette = self.load_bg_palette(nametable_addr, tile_x as u8, tile_y as u8);
+                self.render_tile(
+                    frame,
+                    false,
+                    tile_x as u32 * 8,
+                    tile_y as u32 * 8,
+                    &tile,
+                    &palette,
+                    viewport,
+                    shift_x,
+                    shift_y,
+                );
+            }
+        }
+    }
+
+    pub fn render_tile(
+        &self,
+        frame: &mut NesFrame,
+        is_sprite_tile: bool,
+        x: u32,
+        y: u32,
+        tile: &Tile,
+        palette: &Palette,
+        viewport: &Rect,
+        shift_x: i32,
+        shift_y: i32,
+    ) {
+        // i: row index (y)
+        for i in 0..8 {
+            // j: column index (x)
+            for j in 0..8 {
+                let color_idx = tile.rows[i][j];
+                let color = palette.colors[color_idx as usize];
+                // do not draw background color (index 0) for sprite tiles as they should be "transparent"
+                if !(is_sprite_tile && color_idx == 0) {
+                    if x >= viewport.x1 as u32
+                        && x <= viewport.x2 as u32
+                        && y >= viewport.y1 as u32
+                        && y <= viewport.y2 as u32
+                    {
+                        let pixel_x = x as i64 + j as i64 + shift_x as i64;
+                        let pixel_x: u32 = if pixel_x < 0 { 0 } else { pixel_x as u32 };
+                        let pixel_y = y as i64 + i as i64 + shift_y as i64;
+                        let pixel_y: u32 = if pixel_y < 0 { 0 } else { pixel_y as u32 };
+                        frame.set_pixel(pixel_x, pixel_y, color.0, color.1, color.2)
+                    }
+                }
             }
         }
     }
@@ -355,7 +452,17 @@ impl PPU {
             if flip_horizontal {
                 tile.flip_horizontal();
             }
-            frame.draw_tile(true, sprite_x as u32, sprite_y as u32, &tile, &palette);
+            self.render_tile(
+                frame,
+                true,
+                sprite_x as u32,
+                sprite_y as u32,
+                &tile,
+                &palette,
+                &Rect::new(0, 0, 256, 240),
+                0,
+                0,
+            );
         }
     }
 
@@ -374,8 +481,7 @@ impl PPU {
         Ok(Tile::new(low_bytes, high_bytes).unwrap())
     }
 
-    fn load_bg_palette(&self, tile_x: u8, tile_y: u8) -> Palette {
-        let nametable_addr = self.ctrl_reg.get_base_nametable_addr();
+    fn load_bg_palette(&self, nametable_addr: u16, tile_x: u8, tile_y: u8) -> Palette {
         let attr_table_addr = nametable_addr + 960;
         let block_x = tile_x / 4;
         let block_y = tile_y / 4;
@@ -394,10 +500,10 @@ impl PPU {
         let palette_arr_start = 1 + logical_palette_idx as usize * 4;
         Palette {
             colors: [
-                graphics::SYSTEM_PALETTE[self.palette_table[0] as usize],
-                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start] as usize],
-                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 1] as usize],
-                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
+                SYSTEM_PALETTE[self.palette_table[0] as usize],
+                SYSTEM_PALETTE[self.palette_table[palette_arr_start] as usize],
+                SYSTEM_PALETTE[self.palette_table[palette_arr_start + 1] as usize],
+                SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
             ],
         }
     }
@@ -406,10 +512,10 @@ impl PPU {
         let palette_arr_start: usize = 16 + 1 + palette_idx as usize * 4;
         Palette {
             colors: [
-                graphics::SYSTEM_PALETTE[self.palette_table[0] as usize],
-                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start] as usize],
-                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 1] as usize],
-                graphics::SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
+                SYSTEM_PALETTE[self.palette_table[0] as usize],
+                SYSTEM_PALETTE[self.palette_table[palette_arr_start] as usize],
+                SYSTEM_PALETTE[self.palette_table[palette_arr_start + 1] as usize],
+                SYSTEM_PALETTE[self.palette_table[palette_arr_start + 2] as usize],
             ],
         }
     }
@@ -434,6 +540,103 @@ impl PPU {
             "================================================================================"
         );
     }
+}
+
+// ----------------------------------------------------------------------------
+// Rect
+// ----------------------------------------------------------------------------
+
+pub struct Rect {
+    x1: usize,
+    y1: usize,
+    x2: usize,
+    y2: usize,
+}
+
+impl Rect {
+    pub fn new(x1: usize, y1: usize, x2: usize, y2: usize) -> Self {
+        Rect {
+            x1: x1,
+            y1: y1,
+            x2: x2,
+            y2: y2,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Tile
+// ----------------------------------------------------------------------------
+
+pub struct Tile {
+    pub rows: [[u8; 8]; 8],
+}
+
+impl Tile {
+    pub fn new(low_bytes: &[u8], high_bytes: &[u8]) -> Result<Tile, String> {
+        if low_bytes.len() != 8 || high_bytes.len() != 8 {
+            return Err(format!(
+                "Length of low bytes and high bytes of a tile should be both 8 but are {} and {}",
+                low_bytes.len(),
+                high_bytes.len()
+            ));
+        }
+
+        let mut rows = [[0; 8]; 8];
+        for i in 0..8 {
+            for j in 0..8 {
+                let low_bit = (low_bytes[i] >> j) & 1;
+                let high_bit = (high_bytes[i] >> j) & 1;
+                rows[i][7 - j] = (high_bit << 1) + low_bit;
+            }
+        }
+        Ok(Tile { rows: rows })
+    }
+
+    pub fn flip_vertical(&mut self) {
+        for y in 0..4 {
+            for x in 0..8 {
+                let tmp = self.rows[y][x];
+                self.rows[y][x] = self.rows[7 - y][x];
+                self.rows[7 - y][x] = tmp;
+            }
+        }
+    }
+
+    pub fn flip_horizontal(&mut self) {
+        for x in 0..4 {
+            for y in 0..8 {
+                let tmp = self.rows[y][x];
+                self.rows[y][x] = self.rows[y][7 - x];
+                self.rows[y][7 - x] = tmp;
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Palette
+// ----------------------------------------------------------------------------
+
+#[rustfmt::skip]
+pub static SYSTEM_PALETTE: [(u8, u8, u8); 64] = [
+    (0x80, 0x80, 0x80), (0x00, 0x3D, 0xA6), (0x00, 0x12, 0xB0), (0x44, 0x00, 0x96), (0xA1, 0x00, 0x5E),
+    (0xC7, 0x00, 0x28), (0xBA, 0x06, 0x00), (0x8C, 0x17, 0x00), (0x5C, 0x2F, 0x00), (0x10, 0x45, 0x00),
+    (0x05, 0x4A, 0x00), (0x00, 0x47, 0x2E), (0x00, 0x41, 0x66), (0x00, 0x00, 0x00), (0x05, 0x05, 0x05),
+    (0x05, 0x05, 0x05), (0xC7, 0xC7, 0xC7), (0x00, 0x77, 0xFF), (0x21, 0x55, 0xFF), (0x82, 0x37, 0xFA),
+    (0xEB, 0x2F, 0xB5), (0xFF, 0x29, 0x50), (0xFF, 0x22, 0x00), (0xD6, 0x32, 0x00), (0xC4, 0x62, 0x00),
+    (0x35, 0x80, 0x00), (0x05, 0x8F, 0x00), (0x00, 0x8A, 0x55), (0x00, 0x99, 0xCC), (0x21, 0x21, 0x21),
+    (0x09, 0x09, 0x09), (0x09, 0x09, 0x09), (0xFF, 0xFF, 0xFF), (0x0F, 0xD7, 0xFF), (0x69, 0xA2, 0xFF),
+    (0xD4, 0x80, 0xFF), (0xFF, 0x45, 0xF3), (0xFF, 0x61, 0x8B), (0xFF, 0x88, 0x33), (0xFF, 0x9C, 0x12),
+    (0xFA, 0xBC, 0x20), (0x9F, 0xE3, 0x0E), (0x2B, 0xF0, 0x35), (0x0C, 0xF0, 0xA4), (0x05, 0xFB, 0xFF),
+    (0x5E, 0x5E, 0x5E), (0x0D, 0x0D, 0x0D), (0x0D, 0x0D, 0x0D), (0xFF, 0xFF, 0xFF), (0xA6, 0xFC, 0xFF),
+    (0xB3, 0xEC, 0xFF), (0xDA, 0xAB, 0xEB), (0xFF, 0xA8, 0xF9), (0xFF, 0xAB, 0xB3), (0xFF, 0xD2, 0xB0),
+    (0xFF, 0xEF, 0xA6), (0xFF, 0xF7, 0x9C), (0xD7, 0xE8, 0x95), (0xA6, 0xED, 0xAF), (0xA2, 0xF2, 0xDA),
+    (0x99, 0xFF, 0xFC), (0xDD, 0xDD, 0xDD), (0x11, 0x11, 0x11), (0x11, 0x11, 0x11)
+];
+
+pub struct Palette {
+    pub colors: [(u8, u8, u8); 4],
 }
 
 #[cfg(test)]
