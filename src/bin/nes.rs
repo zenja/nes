@@ -62,7 +62,7 @@ fn main() -> Result<(), String> {
             }
         }
     });
-    let mut cpu = CPU::new(bus);
+    let mut cpu = CPU::new_with_nes_clock_rate(bus);
     cpu.reset();
     cpu.run();
 

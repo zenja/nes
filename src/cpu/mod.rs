@@ -3,7 +3,7 @@ pub mod assembler;
 pub mod spec;
 pub mod trace;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use crate::bus::Bus;
 use addr::AddrMode;
@@ -23,6 +23,8 @@ pub struct CPU<'a> {
 
     pub bus: Bus<'a>,
 
+    use_nes_clock_rate: bool,
+
     // Internal helpers
     opcode_to_spec: HashMap<u8, Spec>,
 }
@@ -39,6 +41,23 @@ impl CPU<'_> {
             cycles: 0,
             total_cycles: 0,
             bus: bus,
+            use_nes_clock_rate: false,
+            opcode_to_spec: spec::opcode_to_spec(),
+        }
+    }
+
+    pub fn new_with_nes_clock_rate(bus: Bus) -> CPU {
+        CPU {
+            pc: 0x8000,
+            sp: 0,
+            acc: 0,
+            reg_x: 0,
+            reg_y: 0,
+            status: CPUStatus::new(),
+            cycles: 0,
+            total_cycles: 0,
+            bus: bus,
+            use_nes_clock_rate: true,
             opcode_to_spec: spec::opcode_to_spec(),
         }
     }
@@ -62,8 +81,11 @@ impl CPU<'_> {
     }
 
     pub fn run_with_callback<F: FnMut(&mut CPU)>(&mut self, mut callback: F) {
+        let sys_clock_time_nanos: u128 = 1_000_000_000 / 5369318;
         let mut total_cpu_cycles_when_callback = u32::MAX;
         loop {
+            let start_time = Instant::now();
+
             let should_callback = self.cycles == 0;
             if should_callback && total_cpu_cycles_when_callback != self.total_cycles {
                 callback(self);
@@ -71,6 +93,12 @@ impl CPU<'_> {
             }
 
             self.sys_tick();
+
+            if self.use_nes_clock_rate {
+                while start_time.elapsed().as_nanos() < sys_clock_time_nanos {
+                    assert!(true);
+                }
+            }
         }
     }
 
