@@ -268,7 +268,6 @@ impl CPU<'_> {
                 self.set_status(N, (self.acc & 0x80) != 0);
             }
             ASL => {
-                let oprand = self.read(oprand_addr);
                 let oprand = if let Implicit = addr_mode {
                     self.acc
                 } else {
@@ -381,53 +380,53 @@ impl CPU<'_> {
                 let oprand = self.read(oprand_addr);
                 let result = self.acc.wrapping_sub(oprand);
                 self.set_status(C, self.acc >= oprand);
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             CPX => {
                 let oprand = self.read(oprand_addr);
                 let result = self.reg_x.wrapping_sub(oprand);
                 self.set_status(C, self.reg_x >= oprand);
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             CPY => {
                 let oprand = self.read(oprand_addr);
                 let result = self.reg_y.wrapping_sub(oprand);
                 self.set_status(C, self.reg_y >= oprand);
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             DEC => {
                 let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_sub(1);
                 self.write(oprand_addr, result);
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             DEX => {
                 self.reg_x = self.reg_x.wrapping_sub(1);
-                self.update_status_Z_N(self.reg_x);
+                self.update_status_z_n(self.reg_x);
             }
             DEY => {
                 self.reg_y = self.reg_y.wrapping_sub(1);
-                self.update_status_Z_N(self.reg_y);
+                self.update_status_z_n(self.reg_y);
             }
             EOR => {
                 let oprand = self.read(oprand_addr);
                 let result = self.acc ^ oprand;
                 self.acc = result;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             INC => {
                 let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_add(1);
                 self.write(oprand_addr, result);
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             INX => {
                 self.reg_x = self.reg_x.wrapping_add(1);
-                self.update_status_Z_N(self.reg_x);
+                self.update_status_z_n(self.reg_x);
             }
             INY => {
                 self.reg_y = self.reg_y.wrapping_add(1);
-                self.update_status_Z_N(self.reg_y);
+                self.update_status_z_n(self.reg_y);
             }
             JMP => {
                 // Caveat:
@@ -474,17 +473,17 @@ impl CPU<'_> {
             LDA => {
                 let oprand = self.read(oprand_addr);
                 self.acc = oprand;
-                self.update_status_Z_N(oprand);
+                self.update_status_z_n(oprand);
             }
             LDX => {
                 let oprand = self.read(oprand_addr);
                 self.reg_x = oprand;
-                self.update_status_Z_N(oprand);
+                self.update_status_z_n(oprand);
             }
             LDY => {
                 let oprand = self.read(oprand_addr);
                 self.reg_y = oprand;
-                self.update_status_Z_N(oprand);
+                self.update_status_z_n(oprand);
             }
             LSR => {
                 let oprand = if let Implicit = addr_mode {
@@ -494,7 +493,7 @@ impl CPU<'_> {
                 };
                 self.set_status(C, oprand & 0x01 == 1);
                 let result = oprand >> 1;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
@@ -507,7 +506,7 @@ impl CPU<'_> {
             ORA => {
                 let oprand = self.read(oprand_addr);
                 self.acc = self.acc | oprand;
-                self.update_status_Z_N(self.acc);
+                self.update_status_z_n(self.acc);
             }
             PHA => {
                 self.stack_push(self.acc);
@@ -523,7 +522,7 @@ impl CPU<'_> {
             }
             PLA => {
                 self.acc = self.stack_pop();
-                self.update_status_Z_N(self.acc);
+                self.update_status_z_n(self.acc);
             }
             PLP => {
                 self.status.bits = self.stack_pop();
@@ -548,7 +547,7 @@ impl CPU<'_> {
                 let tmp: u16 = ((oprand << 1) as u16) | (c_bits as u16);
                 self.set_status(C, tmp & 0xFF00 != 0);
                 let result = (tmp & 0x00FF) as u8;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
                 self.set_status(C, oprand & (1 << 7) != 0);
                 if let Implicit = addr_mode {
                     self.acc = result;
@@ -573,7 +572,7 @@ impl CPU<'_> {
                 let c_bits: u8 = if self.get_status(C) { 1 << 0 } else { 0 };
                 let tmp: u16 = ((c_bits << 7) as u16) | (oprand as u16 >> 1);
                 let result = (tmp & 0x00FF) as u8;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
                 self.set_status(C, oprand & 1 != 0);
                 if let Implicit = addr_mode {
                     self.acc = result;
@@ -610,26 +609,26 @@ impl CPU<'_> {
             }
             TAX => {
                 self.reg_x = self.acc;
-                self.update_status_Z_N(self.reg_x);
+                self.update_status_z_n(self.reg_x);
             }
             TAY => {
                 self.reg_y = self.acc;
-                self.update_status_Z_N(self.reg_y);
+                self.update_status_z_n(self.reg_y);
             }
             TSX => {
                 self.reg_x = self.sp;
-                self.update_status_Z_N(self.reg_x);
+                self.update_status_z_n(self.reg_x);
             }
             TXA => {
                 self.acc = self.reg_x;
-                self.update_status_Z_N(self.acc);
+                self.update_status_z_n(self.acc);
             }
             TXS => {
                 self.sp = self.reg_x;
             }
             TYA => {
                 self.acc = self.reg_y;
-                self.update_status_Z_N(self.acc);
+                self.update_status_z_n(self.acc);
             }
 
             // ---------- Unofficial Opcodes ----------
@@ -639,7 +638,7 @@ impl CPU<'_> {
                 let oprand = self.read(oprand_addr);
                 self.acc = oprand;
                 self.reg_x = self.acc;
-                self.update_status_Z_N(self.acc);
+                self.update_status_z_n(self.acc);
             }
             SAX => {
                 // Stores the bitwise AND of A and X.
@@ -652,14 +651,14 @@ impl CPU<'_> {
                 let result = oprand.wrapping_sub(1);
                 self.write(oprand_addr, result);
                 self.set_status(C, self.acc >= result);
-                self.update_status_Z_N(self.acc.wrapping_sub(result));
+                self.update_status_z_n(self.acc.wrapping_sub(result));
             }
             ISB => {
                 // Equivalent to INC value then SBC value
                 let oprand = self.read(oprand_addr);
                 let result = oprand.wrapping_add(1);
                 self.write(oprand_addr, result);
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
 
                 let value = (result as u16) ^ 0x00FF;
                 let tmp = self.acc as u16 + value + self.get_status(C) as u16;
@@ -689,7 +688,7 @@ impl CPU<'_> {
                 }
 
                 self.acc = self.acc | result;
-                self.update_status_Z_N(self.acc);
+                self.update_status_z_n(self.acc);
             }
             RLA => {
                 // Equivalent to ROL value then AND value
@@ -702,7 +701,7 @@ impl CPU<'_> {
                 let tmp: u16 = ((oprand << 1) as u16) | (c_bits as u16);
                 self.set_status(C, tmp & 0xFF00 != 0);
                 let result = (tmp & 0x00FF) as u8;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
                 self.set_status(C, oprand & (1 << 7) != 0);
                 if let Implicit = addr_mode {
                     self.acc = result;
@@ -723,7 +722,7 @@ impl CPU<'_> {
                 };
                 self.set_status(C, oprand & 0x01 == 1);
                 let mut result = oprand >> 1;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
                 if let Implicit = addr_mode {
                     self.acc = result;
                 } else {
@@ -732,7 +731,7 @@ impl CPU<'_> {
 
                 result = self.acc ^ result;
                 self.acc = result;
-                self.update_status_Z_N(result);
+                self.update_status_z_n(result);
             }
             RRA => {
                 // Equivalent to ROR value then ADC value
@@ -744,7 +743,7 @@ impl CPU<'_> {
                 let c_bits: u8 = if self.get_status(C) { 1 << 0 } else { 0 };
                 let tmp: u16 = ((c_bits << 7) as u16) | (oprand as u16 >> 1);
                 let result_ror = (tmp & 0x00FF) as u8;
-                self.update_status_Z_N(result_ror);
+                self.update_status_z_n(result_ror);
                 self.set_status(C, oprand & 1 != 0);
                 if let Implicit = addr_mode {
                     self.acc = result_ror;
@@ -845,7 +844,7 @@ impl CPU<'_> {
         self.status.turn_off(bit);
     }
 
-    fn update_status_Z_N(&mut self, result: u8) {
+    fn update_status_z_n(&mut self, result: u8) {
         use self::CPUStatusBit::{N, Z};
         self.set_status(Z, result == 0);
         self.set_status(N, result & 0b1000_0000 != 0);

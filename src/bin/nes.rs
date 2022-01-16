@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use cpu::CPU;
 use nes::bus::Bus;
