@@ -151,7 +151,8 @@ impl Bus<'_> {
             0x4000..=0x4015 => 0,
             // controller register
             0x4016 => self.joypads[0].read(),
-            0x4017 => self.joypads[1].read(),
+            // ignore 2nd joypad
+            0x4017 => 0,
             _ => 0,
         }
     }
@@ -165,7 +166,6 @@ impl Bus<'_> {
         match addr {
             0x0000..=0x1FFF => self.cpu_ram[(addr & 0b0000_0111_1111_1111) as usize] = value,
             0x2000..=0x3FFF => self.ppu.cpu_write(addr, value),
-            // TODO DMA register
             0x4014 => {
                 // A write to this address initiates a DMA transfer
                 self.dma_page = value;
@@ -176,7 +176,8 @@ impl Bus<'_> {
             0x4000..=0x4013 | 0x4015 => (),
             // controller register
             0x4016 => self.joypads[0].write(value),
-            0x4017 => self.joypads[1].write(value),
+            // ignore 2nd joypad
+            0x4017 => (),
             _ => (),
         }
     }
