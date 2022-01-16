@@ -81,7 +81,8 @@ impl CPU<'_> {
     }
 
     pub fn run_with_callback<F: FnMut(&mut CPU)>(&mut self, mut callback: F) {
-        let sys_clock_time_nanos: u128 = 1_000_000_000 / 5369318;
+        let freq_speed_up = 1.2;
+        let sys_clock_time_nanos: u128 = 1_000_000_000 / (5369318 as f64 * freq_speed_up) as u128;
         let mut total_cpu_cycles_when_callback = u32::MAX;
         loop {
             let start_time = Instant::now();
