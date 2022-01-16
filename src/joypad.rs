@@ -66,3 +66,46 @@ impl Joypad {
         self.status.set(*status, false);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_strobe_mode() {
+        let mut joypad = Joypad::new();
+        joypad.write(1);
+        joypad.set(&JoypadStatus::BUTTON_A);
+        for _x in 0..10 {
+            assert_eq!(joypad.read(), 1);
+        }
+    }
+
+    #[test]
+    fn test_strobe_mode_on_off() {
+        let mut joypad = Joypad::new();
+
+        joypad.write(0);
+        joypad.set(&JoypadStatus::RIGHT);
+        joypad.set(&JoypadStatus::LEFT);
+        joypad.set(&JoypadStatus::SELECT);
+        joypad.set(&JoypadStatus::BUTTON_B);
+
+        for _ in 0..=1 {
+            assert_eq!(joypad.read(), 0);
+            assert_eq!(joypad.read(), 1);
+            assert_eq!(joypad.read(), 1);
+            assert_eq!(joypad.read(), 0);
+            assert_eq!(joypad.read(), 0);
+            assert_eq!(joypad.read(), 0);
+            assert_eq!(joypad.read(), 1);
+            assert_eq!(joypad.read(), 1);
+
+            for _x in 0..10 {
+                assert_eq!(joypad.read(), 1);
+            }
+            joypad.write(1);
+            joypad.write(0);
+        }
+    }
+}
